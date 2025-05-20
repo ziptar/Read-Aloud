@@ -1,10 +1,32 @@
 import { Readability } from '@mozilla/readability';
+import { Reader, SpeechOptions } from "./modules/reader";
 
 export default defineContentScript({
   matches: ['<all_urls>'],
   main() {
-    const speechSynthesis = window.speechSynthesis;
-    const voices = speechSynthesis.getVoices();
+    const reader = new Reader(
+      {
+        onSpeechStart: () => {
+          console.debug('Speech started.');
+        },
+        onSpeechEnd: () => {
+          console.debug('Speech ended.');
+        },
+        onSpeechError: (error) => {
+          console.error('Speech error:', error);
+        },
+        onSpeechPause: () => {
+          console.debug('Speech paused.');
+        },
+        onSpeechResume: () => {
+          console.debug('Speech resumed.');
+        },
+        onSpeechStop: () => {
+          console.debug('Speech stopped.');
+        }
+      }
+    );
+
     // Listen for messages from the popup or background script
     browser.runtime.onMessage.addListener((message) => {
       console.debug('Content script received message:', message);
@@ -21,12 +43,16 @@ export default defineContentScript({
         console.log(textToRead);
 
         if (textToRead) {
-          const voices = speechSynthesis.getVoices();
-          console.log(voices);                   
-          const utterance = new SpeechSynthesisUtterance(textToRead);
-          utterance.voice = voices[3];
-          utterance.volume = 0.5;
-          speechSynthesis.speak(utterance);
+          const voices = reader.getVoices();
+          console.log(voices);
+          const speechOptions: SpeechOptions = {
+            voice: voices[3].name,
+            rate: 1.0,
+            pitch: 1.0,
+            volume: 0.5,
+            lang: 'en-US'
+          };
+          reader.speak(textToRead, speechOptions);
         }
       }
     });
