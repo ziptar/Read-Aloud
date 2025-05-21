@@ -71,6 +71,30 @@ const pitchValue = document.getElementById('pitchValue') as HTMLSpanElement;
 const volumeValue = document.getElementById('volumeValue') as HTMLSpanElement;
 const statusMessage = document.getElementById('statusMessage') as HTMLDivElement;
 
+// Load available voices
+async function loadVoices() {
+    try {
+        const voices = await Reader.getVoices();
+
+        // Populate voice select dropdown
+        voiceSelect.innerHTML = '';
+        voices.forEach(voice => {
+            const option = document.createElement('option');
+            option.value = voice.name;
+            option.textContent = `${voice.name} (${voice.lang})`;
+            voiceSelect.appendChild(option);
+        });
+
+        // Select default voice
+        if (voices.length > 0) {
+            speechOptions.voice = voices[0].name;
+        }
+    } catch (error) {
+        console.error('Error loading voices:', error);
+        statusMessage.textContent = 'Error loading voices. Please try again.';
+    }
+}
+
 // Add event listeners
 voiceSelect.addEventListener('change', () => {
     speechOptions.voice = voiceSelect.value;
@@ -87,3 +111,20 @@ volumeRange.addEventListener('input', () => {
     speechOptions.volume = parseFloat(volumeRange.value);
     volumeValue.textContent = volumeRange.value;
 });
+
+// Initialize
+async function initialize() {
+    try {
+        console.debug('Initializing popup...');
+
+        // Load voices
+        await loadVoices();
+
+    } catch (error) {
+        console.error('Error initializing:', error);
+        statusMessage.textContent = 'Error initializing. Please try again.';
+    }
+}
+
+// Start initialization
+initialize();
