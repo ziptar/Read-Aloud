@@ -28,8 +28,8 @@ export default defineBackground(() => {
             // First check if we can communicate with the content script
             browser.tabs.sendMessage(tab.id, { action: 'ping' }).then(() => {
                 // Content script is already loaded, send the readAloud message
-                console.debug('Content script is loaded. Sending startSpeaking message.');
-                return browser.tabs.sendMessage(tab.id, { action: 'startSpeaking', options: speechOptions });
+                console.debug('Content script is loaded. Sending startReading message.');
+                return browser.tabs.sendMessage(tab.id, { action: 'startReading', options: speechOptions });
             }).catch(err => {
                 // Content script is not loaded, inject it first
                 console.debug('Content script not loaded. Injecting it now.');
@@ -38,8 +38,8 @@ export default defineBackground(() => {
                     files: ['content-scripts/content.js'] // Make sure this path matches your build output
                 }).then(() => {
                     console.debug('Content script injected.');
-                    console.debug('Sending startSpeaking message to newly injected content script.');
-                    return browser.tabs.sendMessage(tab.id, { action: 'startSpeaking', options: speechOptions });
+                    console.debug('Sending startReading message to newly injected content script.');
+                    return browser.tabs.sendMessage(tab.id, { action: 'startReading', options: speechOptions });
                 }).catch(err => {
                     console.error('Error communicating with content script:', err);
                 });

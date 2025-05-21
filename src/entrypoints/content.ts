@@ -36,23 +36,14 @@ export default defineContentScript({
         console.debug('Received ping.');
       }
 
-      if (message.action === 'readAloud') {
+      if (message.action === 'startReading') {
         // Extract selected text or page content
         const selectedText = window.getSelection()?.toString();
         const textToRead = selectedText || extractReadableContent() || document.body.innerText;
         console.log(textToRead);
 
         if (textToRead) {
-          const voices = reader.getVoices();
-          console.log(voices);
-          const speechOptions: SpeechOptions = {
-            voice: voices[3].name,
-            rate: 1.0,
-            pitch: 1.0,
-            volume: 0.5,
-            lang: 'en-US'
-          };
-          reader.speak(textToRead, speechOptions);
+          reader.speak(textToRead, message.options);
         }
       }
     });
