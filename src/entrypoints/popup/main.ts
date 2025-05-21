@@ -117,7 +117,9 @@ volumeRange.addEventListener('input', () => {
 // Save settings when popup is closed
 window.addEventListener('blur', () => {
   if (settingsChanged) {
-    SettingsManager.saveSettings(speechOptions);
+    browser.runtime.sendMessage({
+      action: 'saveSettings', options: speechOptions
+    });
   }
 });
 
