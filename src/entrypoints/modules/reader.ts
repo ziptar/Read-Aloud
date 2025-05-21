@@ -1,5 +1,5 @@
 export class Reader {
-    private speechSynthesis: SpeechSynthesis;
+    private voices: SpeechSynthesisVoice[] = [];
     private utterance: SpeechSynthesisUtterance | null = null;
     private onSpeechStart: () => void;
     private onSpeechEnd: () => void;
@@ -16,8 +16,7 @@ export class Reader {
         onSpeechResume?: () => void;
         onSpeechStop?: () => void;
     } = {}) {
-        this.speechSynthesis = window.speechSynthesis;
-        this.speechSynthesis.getVoices();
+        Reader.getVoices().then(voices => this.voices = voices);
         this.onSpeechStart = callbacks.onSpeechStart || (() => { });
         this.onSpeechEnd = callbacks.onSpeechEnd || (() => { });
         this.onSpeechError = callbacks.onSpeechError || (() => { });
@@ -26,8 +25,18 @@ export class Reader {
         this.onSpeechStop = callbacks.onSpeechStop || (() => { });
     }
 
-    getVoices(): SpeechSynthesisVoice[] {
-        return this.speechSynthesis.getVoices();
+    static getVoices(): Promise<SpeechSynthesisVoice[]> {
+        return new Promise((resolve) => {
+            let voices = window.speechSynthesis.getVoices();
+            if (voices.length !== 0) {
+                resolve(voices);
+            } else {
+                window.speechSynthesis.addEventListener("voiceschanged", function () {
+                    voices = window.speechSynthesis.getVoices();
+                    resolve(voices);
+                });
+            }
+        });
     }
 
     /**
@@ -36,7 +45,7 @@ export class Reader {
     speak(text: string, options: SpeechOptions = {}): void {
         // Stop any ongoing speech
         if (this.utterance) {
-            this.speechSynthesis.cancel();
+            window.speechSynthesis.cancel();
         }
 
         // Create a new utterance with the provided text
@@ -44,8 +53,7 @@ export class Reader {
 
         // Apply speech options
         if (options.voice) {
-            const voices = this.speechSynthesis.getVoices();
-            const selectedVoice = voices.find(voice => voice.name === options.voice);
+            const selectedVoice = this.voices.find(voice => voice.name === options.voice);
             if (selectedVoice) {
                 this.utterance.voice = selectedVoice;
             }
@@ -80,7 +88,7 @@ export class Reader {
         };
 
         // Start speaking
-        this.speechSynthesis.speak(this.utterance);
+        window.speechSynthesis.speak(this.utterance);
         this.onSpeechStart();
     }
 
@@ -89,7 +97,7 @@ export class Reader {
     */
     stop(): void {
         if (this.utterance) {
-            this.speechSynthesis.cancel();
+            window.speechSynthesis.cancel();
             this.utterance = null;
             this.onSpeechStop();
         }
@@ -99,8 +107,8 @@ export class Reader {
     * Pause the current speech
     */
     pause(): void {
-        if (this.utterance && this.speechSynthesis.speaking) {
-            this.speechSynthesis.pause();
+        if (this.utterance && window.speechSynthesis.speaking) {
+            window.speechSynthesis.pause();
             this.onSpeechPause();
         }
     }
@@ -109,8 +117,8 @@ export class Reader {
     * Resume the paused speech
     */
     resume(): void {
-        if (this.utterance && this.speechSynthesis.paused) {
-            this.speechSynthesis.resume();
+        if (this.utterance && window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
             this.onSpeechResume();
         }
     }
@@ -119,14 +127,14 @@ export class Reader {
     * Check if speech is currently active
     */
     isSpeaking(): boolean {
-        return this.speechSynthesis.speaking;
+        return window.speechSynthesis.speaking;
     }
 
     /**
     * Check if speech is currently paused
     */
     isPaused(): boolean {
-        return this.speechSynthesis.paused;
+        return window.speechSynthesis.paused;
     }
 }
 
