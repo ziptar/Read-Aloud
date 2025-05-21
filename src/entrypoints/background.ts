@@ -1,3 +1,5 @@
+import { SettingsManager } from "./modules/settings"
+
 export default defineBackground(() => {
     console.log('Read Aloud background script loaded.');
 
@@ -36,6 +38,14 @@ export default defineBackground(() => {
                     console.error('Error communicating with content script:', err);
                 });
             });
+        }
+    });
+
+    // Handle messages from content scripts & popup
+    browser.runtime.onMessage.addListener((message) => {
+        if (message.action === 'saveSettings') {
+            console.debug('Received saveSettings message with options:', message.options);
+            SettingsManager.saveSettings(message.options);
         }
     });
 });

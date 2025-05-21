@@ -1,13 +1,11 @@
 import './style.css';
 import { Reader, SpeechOptions } from '../modules/reader';
+import { SettingsManager } from "../modules/settings"
 
-let speechOptions: SpeechOptions = {
-    voice: '',
-    rate: 1.0,
-    pitch: 1.0,
-    volume: 1.0,
-    lang: 'en-US'
-};
+let speechOptions: SpeechOptions = {};
+
+let settingsManager = new SettingsManager();
+let settingsChanged = false;
 
 
 // Initialize the popup UI
@@ -73,57 +71,71 @@ const statusMessage = document.getElementById('statusMessage') as HTMLDivElement
 
 // Load available voices
 async function loadVoices() {
-    try {
-        const voices = await Reader.getVoices();
+  try {
+    const voices = await Reader.getVoices();
 
-        // Populate voice select dropdown
-        voiceSelect.innerHTML = '';
-        voices.forEach(voice => {
-            const option = document.createElement('option');
-            option.value = voice.name;
-            option.textContent = `${voice.name} (${voice.lang})`;
-            voiceSelect.appendChild(option);
-        });
+    // Populate voice select dropdown
+    voiceSelect.innerHTML = '';
+    voices.forEach(voice => {
+      const option = document.createElement('option');
+      option.value = voice.name;
+      option.textContent = `${voice.name} (${voice.lang})`;
+      voiceSelect.appendChild(option);
+    });
 
-        // Select default voice
-        if (voices.length > 0) {
-            speechOptions.voice = voices[0].name;
-        }
-    } catch (error) {
-        console.error('Error loading voices:', error);
-        statusMessage.textContent = 'Error loading voices. Please try again.';
+    // Select default voice
+    if (voices.length > 0) {
+      speechOptions.voice = voices[0].name;
     }
+  } catch (error) {
+    console.error('Error loading voices:', error);
+    statusMessage.textContent = 'Error loading voices. Please try again.';
+  }
 }
 
 // Add event listeners
 voiceSelect.addEventListener('change', () => {
-    speechOptions.voice = voiceSelect.value;
+  speechOptions.voice = voiceSelect.value;
+  settingsChanged = true;
 });
 rateRange.addEventListener('input', () => {
-    speechOptions.rate = parseFloat(rateRange.value);
-    rateValue.textContent = rateRange.value;
+  speechOptions.rate = parseFloat(rateRange.value);
+  rateValue.textContent = rateRange.value;
+  settingsChanged = true;
 });
 pitchRange.addEventListener('input', () => {
-    speechOptions.pitch = parseFloat(pitchRange.value);
-    pitchValue.textContent = pitchRange.value;
+  speechOptions.pitch = parseFloat(pitchRange.value);
+  pitchValue.textContent = pitchRange.value;
+  settingsChanged = true;
 });
 volumeRange.addEventListener('input', () => {
-    speechOptions.volume = parseFloat(volumeRange.value);
-    volumeValue.textContent = volumeRange.value;
+  speechOptions.volume = parseFloat(volumeRange.value);
+  volumeValue.textContent = volumeRange.value;
+  settingsChanged = true;
+});
+
+// Save settings when popup is closed
+window.addEventListener('blur', () => {
+  if (settingsChanged) {
+    SettingsManager.saveSettings(speechOptions);
+  }
 });
 
 // Initialize
 async function initialize() {
-    try {
-        console.debug('Initializing popup...');
+  try {
+    console.debug('Initializing popup...');
 
-        // Load voices
-        await loadVoices();
+    // Load voices
+    await loadVoices();
 
-    } catch (error) {
-        console.error('Error initializing:', error);
-        statusMessage.textContent = 'Error initializing. Please try again.';
-    }
+    // Load saved settings first
+    speechOptions = await SettingsManager.loadSettings();
+
+  } catch (error) {
+    console.error('Error initializing:', error);
+    statusMessage.textContent = 'Error initializing. Please try again.';
+  }
 }
 
 // Start initialization
