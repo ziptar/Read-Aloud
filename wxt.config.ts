@@ -11,7 +11,6 @@ export default defineConfig({
             'tabs',
             'storage',
             'contextMenus',
-            'tts',
             'scripting'
         ],
         host_permissions: ['<all_urls>'],
