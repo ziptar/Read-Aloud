@@ -93,6 +93,29 @@ async function loadVoices() {
   }
 }
 
+// Apply settings to UI controls
+function applySettingsToUI() {
+  if (speechOptions.voice) {
+    voiceSelect.value = speechOptions.voice;
+  }
+
+  if (speechOptions.rate) {
+    rateRange.value = speechOptions.rate.toString();
+    rateValue.textContent = speechOptions.rate.toString();
+  }
+
+  if (speechOptions.pitch) {
+    pitchRange.value = speechOptions.pitch.toString();
+    pitchValue.textContent = speechOptions.pitch.toString();
+  }
+
+  if (speechOptions.volume) {
+    volumeRange.value = speechOptions.volume.toString();
+    volumeValue.textContent = speechOptions.volume.toString();
+  }
+}
+
+
 // Add event listeners
 voiceSelect.addEventListener('change', () => {
   speechOptions.voice = voiceSelect.value;
@@ -133,6 +156,9 @@ async function initialize() {
 
     // Load saved settings first
     speechOptions = await SettingsManager.loadSettings();
+
+    // Apply settings to UI
+    applySettingsToUI();
 
   } catch (error) {
     console.error('Error initializing:', error);
