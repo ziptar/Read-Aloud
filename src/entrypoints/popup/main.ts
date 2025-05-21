@@ -1,4 +1,14 @@
 import './style.css';
+import { Reader, SpeechOptions } from '../modules/reader';
+
+let speechOptions: SpeechOptions = {
+    voice: '',
+    rate: 1.0,
+    pitch: 1.0,
+    volume: 1.0,
+    lang: 'en-US'
+};
+
 
 // Initialize the popup UI
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
@@ -60,3 +70,20 @@ const rateValue = document.getElementById('rateValue') as HTMLSpanElement;
 const pitchValue = document.getElementById('pitchValue') as HTMLSpanElement;
 const volumeValue = document.getElementById('volumeValue') as HTMLSpanElement;
 const statusMessage = document.getElementById('statusMessage') as HTMLDivElement;
+
+// Add event listeners
+voiceSelect.addEventListener('change', () => {
+    speechOptions.voice = voiceSelect.value;
+});
+rateRange.addEventListener('input', () => {
+    speechOptions.rate = parseFloat(rateRange.value);
+    rateValue.textContent = rateRange.value;
+});
+pitchRange.addEventListener('input', () => {
+    speechOptions.pitch = parseFloat(pitchRange.value);
+    pitchValue.textContent = pitchRange.value;
+});
+volumeRange.addEventListener('input', () => {
+    speechOptions.volume = parseFloat(volumeRange.value);
+    volumeValue.textContent = volumeRange.value;
+});
