@@ -7,6 +7,10 @@ let speechOptions: SpeechOptions = {};
 let settingsChanged = false;
 let currentTab: Browser.tabs.Tab | null = null;
 
+// Speech synthesis state
+let isSpeaking = false;
+let isPaused = false;
+
 // Initialize the popup UI
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   <div class="read-aloud-container">
@@ -132,6 +136,23 @@ function applySettingsToUI() {
   }
 }
 
+// Update UI based on speech state
+function updateUI() {
+  readButton.disabled = isSpeaking;
+  pauseButton.disabled = !isSpeaking;
+  stopButton.disabled = !isSpeaking && !isPaused;
+
+  if (isSpeaking) {
+    readButton.innerHTML = '<span class="icon">▶</span> Reading...';
+    pauseButton.innerHTML = isPaused ?
+      '<span class="icon">▶</span> Resume' :
+      '<span class="icon">⏸</span> Pause';
+  } else {
+    readButton.innerHTML = '<span class="icon">▶</span> Read Aloud';
+    pauseButton.innerHTML = '<span class="icon">⏸</span> Pause';
+  }
+}
+
 // Start reading the page content
 function startReading() {
   if (currentTab?.id) {
@@ -141,17 +162,17 @@ function startReading() {
       .then(() => {
         // Content script is already loaded, send the readAloud message
         console.debug("Content script is loaded. Sending startReading message.");
-        return browser.tabs.sendMessage(currentTab.id, {
+        return browser.tabs.sendMessage(currentTab?.id!, {
           action: "startReading",
           options: speechOptions,
         });
       })
-      .catch((err) => {
+      .catch(() => {
         // Content script is not loaded, inject it first
         console.debug("Content script not loaded. Injecting it now.");
         browser.scripting
           .executeScript({
-            target: { tabId: currentTab.id },
+            target: { tabId: currentTab?.id! },
             files: ["content-scripts/content.js"], // Make sure this path matches your build output
           })
           .then(() => {
@@ -159,7 +180,7 @@ function startReading() {
             console.debug(
               "Sending startReading message to newly injected content script."
             );
-            return browser.tabs.sendMessage(currentTab.id, {
+            return browser.tabs.sendMessage(currentTab?.id!, {
               action: "startReading",
               options: speechOptions,
             });
@@ -173,8 +194,35 @@ function startReading() {
   }
 }
 
+// Stop speech
+async function stopReading() {
+  if (!isSpeaking && !isPaused) return;
+
+  browser.tabs.sendMessage(currentTab?.id!, { action: 'stopSpeaking' }).catch((err) => {
+    console.error('Error stopping speech:', err);
+    statusMessage.textContent = 'Error stopping speech. Please try again.';
+  });
+}
+
+// Listen for messages from background script
+browser.runtime.onMessage.addListener((message) => {
+  if (message.action === 'speechStarted') {
+    console.debug('Popup onMessage listener: message.action: ', message.action);
+    isSpeaking = true;
+    isPaused = false;
+    statusMessage.textContent = 'Reading page content...';
+    updateUI();
+  } else if (message.action === 'speechEnded' || message.action === 'speechStopped') {
+    isSpeaking = false;
+    isPaused = false;
+    statusMessage.textContent = 'Finished reading.';
+    updateUI();
+  }
+});
+
 // Add event listeners
 readButton.addEventListener("click", startReading);
+stopButton.addEventListener("click", stopReading);
 voiceSelect.addEventListener("change", () => {
   speechOptions.voice = voiceSelect.value;
   settingsChanged = true;
