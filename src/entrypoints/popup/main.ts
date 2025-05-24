@@ -195,13 +195,37 @@ function startReading() {
 }
 
 // Stop speech
-async function stopReading() {
+function stopReading() {
   if (!isSpeaking && !isPaused) return;
 
   browser.tabs.sendMessage(currentTab?.id!, { action: 'stopSpeaking' }).catch((err) => {
     console.error('Error stopping speech:', err);
     statusMessage.textContent = 'Error stopping speech. Please try again.';
   });
+}
+
+// Pause or resume speech
+function togglePause() {
+  console.debug('togglePause called');
+  if (!isSpeaking) return;
+
+  console.debug("isSpeaking: ", isSpeaking);
+  try {
+    if (isPaused) {
+      browser.tabs.sendMessage(currentTab?.id!, {
+        action: "resumeSpeaking",
+      });
+    } else {
+      browser.tabs.sendMessage(currentTab?.id!, {
+        action: 'pauseSpeaking'
+      }
+      );
+    }
+    updateUI();
+  } catch (err) {
+    console.error('Error toggling pause:', err);
+    statusMessage.textContent = 'Error controlling speech. Please try again.';
+  }
 }
 
 // Listen for messages from background script
@@ -217,12 +241,26 @@ browser.runtime.onMessage.addListener((message) => {
     isPaused = false;
     statusMessage.textContent = 'Finished reading.';
     updateUI();
+  } else if (message.action === 'speechPaused') {
+    isPaused = true;
+    statusMessage.textContent = 'Paused reading.';
+    updateUI();
+  } else if (message.action === 'speechResumed') {
+    isPaused = false;
+    statusMessage.textContent = 'Resumed reading...';
+    updateUI();
+  } else if (message.action === 'speechError') {
+    isSpeaking = false;
+    isPaused = false;
+    statusMessage.textContent = `Error: ${message.error || 'Unknown error'}`;
+    updateUI();
   }
 });
 
 // Add event listeners
 readButton.addEventListener("click", startReading);
 stopButton.addEventListener("click", stopReading);
+pauseButton.addEventListener('click', togglePause);
 voiceSelect.addEventListener("change", () => {
   speechOptions.voice = voiceSelect.value;
   settingsChanged = true;
