@@ -14,18 +14,24 @@ export default defineContentScript({
           console.debug('Speech ended.');
           browser.runtime.sendMessage({ action: 'speechEnded' });
         },
-        onSpeechError: (error) => {
-          console.error('Speech error:', error);
+        onSpeechError: (err) => {
+          console.error('Speech error:', err);
+          // browser.runtime.sendMessage({
+          //   action: 'speechError',
+          //   error: err
+          // });
         },
         onSpeechPause: () => {
           console.debug('Speech paused.');
+          browser.runtime.sendMessage({ action: 'speechPaused' });
         },
         onSpeechResume: () => {
           console.debug('Speech resumed.');
+          browser.runtime.sendMessage({ action: 'speechResumed' });
         },
         onSpeechStop: () => {
           console.debug('Speech stopped.');
-          browser.runtime.sendMessage({ action: 'speechStopped'});
+          browser.runtime.sendMessage({ action: 'speechStopped' });
         }
       }
     );
@@ -43,14 +49,18 @@ export default defineContentScript({
         // Extract selected text or page content
         const selectedText = window.getSelection()?.toString();
         const textToRead = selectedText || extractReadableContent() || document.body.innerText;
-        console.log(textToRead);
+        console.debug(textToRead);
 
         if (textToRead) {
           reader.speak(textToRead, message.options);
         }
-      }
-      else if (message.action === 'stopSpeaking') {
+      } else if (message.action === 'stopSpeaking') {
+        console.debug("Stopping speech...");
         reader.stop();
+      } else if (message.action === 'pauseSpeaking') {
+        reader.pause();
+      } else if (message.action === 'resumeSpeaking') {
+        reader.resume();
       }
     });
 
