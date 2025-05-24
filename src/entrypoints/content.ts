@@ -8,9 +8,11 @@ export default defineContentScript({
       {
         onSpeechStart: () => {
           console.debug('Speech started.');
+          browser.runtime.sendMessage({ action: 'speechStarted' });
         },
         onSpeechEnd: () => {
           console.debug('Speech ended.');
+          browser.runtime.sendMessage({ action: 'speechEnded' });
         },
         onSpeechError: (error) => {
           console.error('Speech error:', error);
@@ -23,6 +25,7 @@ export default defineContentScript({
         },
         onSpeechStop: () => {
           console.debug('Speech stopped.');
+          browser.runtime.sendMessage({ action: 'speechStopped'});
         }
       }
     );
@@ -45,6 +48,9 @@ export default defineContentScript({
         if (textToRead) {
           reader.speak(textToRead, message.options);
         }
+      }
+      else if (message.action === 'stopSpeaking') {
+        reader.stop();
       }
     });
 
