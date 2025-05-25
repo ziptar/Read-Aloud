@@ -1,5 +1,5 @@
 import { Readability } from '@mozilla/readability';
-import { Reader, SpeechOptions } from "./modules/reader";
+import { Reader } from "./modules/reader";
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -55,12 +55,19 @@ export default defineContentScript({
           reader.speak(textToRead, message.options);
         }
       } else if (message.action === 'stopSpeaking') {
-        console.debug("Stopping speech...");
         reader.stop();
       } else if (message.action === 'pauseSpeaking') {
         reader.pause();
       } else if (message.action === 'resumeSpeaking') {
         reader.resume();
+      } else if (message.action === 'getSpeechState') {
+        browser.runtime.sendMessage({
+          action: 'updateSpeechState',
+          state: {
+            isSpeaking: reader.isSpeaking(),
+            isPaused: reader.isPaused()
+          }
+        });
       }
     });
 
