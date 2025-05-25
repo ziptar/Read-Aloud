@@ -70,9 +70,7 @@ const volumeRange = document.getElementById("volumeRange") as HTMLInputElement;
 const rateValue = document.getElementById("rateValue") as HTMLSpanElement;
 const pitchValue = document.getElementById("pitchValue") as HTMLSpanElement;
 const volumeValue = document.getElementById("volumeValue") as HTMLSpanElement;
-const statusMessage = document.getElementById(
-  "statusMessage"
-) as HTMLDivElement;
+const statusMessage = document.getElementById("statusMessage") as HTMLDivElement;
 
 // Get the current active tab
 async function getCurrentTab() {
@@ -116,24 +114,27 @@ async function loadVoices() {
 
 // Apply settings to UI controls
 function applySettingsToUI() {
-  if (speechOptions.voice) {
-    voiceSelect.value = speechOptions.voice;
-  }
+  voiceSelect.value = speechOptions.voice!;
 
-  if (speechOptions.rate) {
-    rateRange.value = speechOptions.rate.toString();
-    rateValue.textContent = speechOptions.rate.toString();
-  }
+  rateRange.value = speechOptions.rate!.toString();
+  rateValue.textContent = speechOptions.rate!.toString();
 
-  if (speechOptions.pitch) {
-    pitchRange.value = speechOptions.pitch.toString();
-    pitchValue.textContent = speechOptions.pitch.toString();
-  }
+  pitchRange.value = speechOptions.pitch!.toString();
+  pitchValue.textContent = speechOptions.pitch!.toString();
 
-  if (speechOptions.volume) {
-    volumeRange.value = speechOptions.volume.toString();
-    volumeValue.textContent = speechOptions.volume.toString();
-  }
+  volumeRange.value = speechOptions.volume!.toString();
+  volumeValue.textContent = speechOptions.volume!.toString();
+}
+
+// Check if reader is currently speaking
+function checkSpeechState() {
+  browser.tabs
+    .sendMessage(currentTab?.id!, {
+      action: "getSpeechState",
+    })
+    .catch((err) => {
+      console.error("Error checking speech state:", err);
+    });
 }
 
 // Update UI based on speech state
@@ -177,9 +178,7 @@ function startReading() {
           })
           .then(() => {
             console.debug("Content script injected.");
-            console.debug(
-              "Sending startReading message to newly injected content script."
-            );
+            console.debug("Sending startReading message to newly injected content script.");
             return browser.tabs.sendMessage(currentTab?.id!, {
               action: "startReading",
               options: speechOptions,
@@ -206,10 +205,8 @@ function stopReading() {
 
 // Pause or resume speech
 function togglePause() {
-  console.debug('togglePause called');
   if (!isSpeaking) return;
 
-  console.debug("isSpeaking: ", isSpeaking);
   try {
     if (isPaused) {
       browser.tabs.sendMessage(currentTab?.id!, {
@@ -231,7 +228,6 @@ function togglePause() {
 // Listen for messages from background script
 browser.runtime.onMessage.addListener((message) => {
   if (message.action === 'speechStarted') {
-    console.debug('Popup onMessage listener: message.action: ', message.action);
     isSpeaking = true;
     isPaused = false;
     statusMessage.textContent = 'Reading page content...';
@@ -253,6 +249,13 @@ browser.runtime.onMessage.addListener((message) => {
     isSpeaking = false;
     isPaused = false;
     statusMessage.textContent = `Error: ${message.error || 'Unknown error'}`;
+    updateUI();
+  } else if (message.action === 'updateSpeechState') {
+    isSpeaking = message.state.isSpeaking;
+    isPaused = message.state.isPaused;
+    if (isSpeaking) {
+      statusMessage.textContent = isPaused ? 'Paused reading.' : 'Reading page content...';
+    }
     updateUI();
   }
 });
@@ -305,8 +308,11 @@ async function initialize() {
 
     // Apply settings to UI
     applySettingsToUI();
-  } catch (error) {
-    console.error("Error initializing:", error);
+
+    // Check if reader is currently speaking
+    checkSpeechState();
+  } catch (err) {
+    console.error("Error initializing:", err);
     statusMessage.textContent = "Error initializing. Please try again.";
   }
 }
