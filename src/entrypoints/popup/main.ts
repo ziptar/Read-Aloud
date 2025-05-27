@@ -88,6 +88,34 @@ async function getCurrentTab() {
   }
 }
 
+// Load content script
+async function loadContentScript() {
+  if (currentTab?.id) {
+    // First check if we can communicate with the content script
+    await browser.tabs
+      .sendMessage(currentTab.id, { action: "ping" })
+      .then(() => {
+        // Content script is already loaded
+        console.debug("Content script is loaded successfully.");
+      })
+      .catch(async () => {
+        // Content script is not loaded, inject it first
+        console.debug("Content script not loaded. Injecting it now.");
+        await browser.scripting
+          .executeScript({
+            target: { tabId: currentTab?.id! },
+            files: ["content-scripts/content.js"],
+          })
+          .then(() => {
+            console.debug("Content script injected successfully.");
+          })
+          .catch((err) => {
+            console.error("Error loading content script:", err.message);
+          });
+      });
+  }
+}
+
 // Load available voices
 async function loadVoices() {
   try {
@@ -156,41 +184,17 @@ function updateUI() {
 
 // Start reading the page content
 function startReading() {
-  if (currentTab?.id) {
-    // First check if we can communicate with the content script
-    browser.tabs
-      .sendMessage(currentTab.id, { action: "ping" })
-      .then(() => {
-        // Content script is already loaded, send the readAloud message
-        console.debug("Content script is loaded. Sending startReading message.");
-        return browser.tabs.sendMessage(currentTab?.id!, {
-          action: "startReading",
-          options: speechOptions,
-        });
-      })
-      .catch(() => {
-        // Content script is not loaded, inject it first
-        console.debug("Content script not loaded. Injecting it now.");
-        browser.scripting
-          .executeScript({
-            target: { tabId: currentTab?.id! },
-            files: ["content-scripts/content.js"], // Make sure this path matches your build output
-          })
-          .then(() => {
-            console.debug("Content script injected.");
-            console.debug("Sending startReading message to newly injected content script.");
-            return browser.tabs.sendMessage(currentTab?.id!, {
-              action: "startReading",
-              options: speechOptions,
-            });
-          })
-          .catch((err) => {
-            console.error("Error communicating with content script:", err);
-            statusMessage.textContent =
-              "Error starting speech. Please try again.";
-          });
-      });
-  }
+  if (isSpeaking) return;
+
+  browser.tabs
+    .sendMessage(currentTab?.id!, {
+      action: "startReading",
+      options: speechOptions,
+    })
+    .catch((err) => {
+      console.error("Error starting speech:", err.message);
+      statusMessage.textContent = "Error starting speech. Please try again.";
+    });
 }
 
 // Stop speech
@@ -299,6 +303,9 @@ async function initialize() {
   try {
     console.debug("Initializing popup...");
     await getCurrentTab();
+
+    // Load content script
+    await loadContentScript();
 
     // Load voices
     await loadVoices();

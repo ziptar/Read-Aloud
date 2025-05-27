@@ -2,7 +2,7 @@ import { SettingsManager } from "./modules/settings"
 import { SpeechOptions } from "./modules/reader";
 
 export default defineBackground(() => {
-    console.log('Read Aloud background script loaded.');
+    console.log('Read Aloud background script loaded successfully.');
 
     let speechOptions: SpeechOptions = {};
     SettingsManager.loadSettings().then(settings => {
@@ -18,7 +18,7 @@ export default defineBackground(() => {
             title: 'Read aloud',
             contexts: ['page', 'selection'],
         });
-        console.debug('Context menu created.');
+        console.debug("Context menu created successfully.");
     });
 
     browser.contextMenus.onClicked.addListener((info, tab) => {
@@ -35,9 +35,9 @@ export default defineBackground(() => {
                 console.debug('Content script not loaded. Injecting it now.');
                 browser.scripting.executeScript({
                     target: { tabId: tab?.id! },
-                    files: ['content-scripts/content.js'] // Make sure this path matches your build output
+                    files: ['content-scripts/content.js']
                 }).then(() => {
-                    console.debug('Content script injected.');
+                    console.debug('Content script injected successfully.');
                     console.debug('Sending startReading message to newly injected content script.');
                     return browser.tabs.sendMessage(tab?.id!, { action: 'startReading', options: speechOptions });
                 }).catch(err => {

@@ -13,18 +13,18 @@ export class SettingsManager {
         try {
             const result = await browser.storage.local.get('settings');
             const settings = result.settings || this.defaults;
-            console.debug('Settings loaded successfully');
+            console.debug('Settings loaded successfully.');
             return settings;
         } catch (error) {
             console.error('Failed to load settings:', error);
-            console.log('Falling back to default settings');
+            console.log('Falling back to default settings.');
             return this.defaults;
         }
     }
 
     static saveSettings(settings: SpeechOptions) {
         browser.storage.local.set({ settings }).then(() => {
-            console.debug('Settings saved successfully');
+            console.debug('Settings saved successfully.');
         }).catch(err => {
             console.error('Failed to save settings:', err);
         });
