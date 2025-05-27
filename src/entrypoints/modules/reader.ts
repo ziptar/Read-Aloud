@@ -82,7 +82,6 @@ export class Reader {
         };
 
         this.utterance.onerror = (event) => {
-            console.error('Speech synthesis error:', event);
             this.utterance = null;
             this.onSpeechError(event.error);
         };

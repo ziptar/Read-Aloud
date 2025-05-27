@@ -15,11 +15,15 @@ export default defineContentScript({
           browser.runtime.sendMessage({ action: 'speechEnded' });
         },
         onSpeechError: (err) => {
-          console.error('Speech error:', err);
-          // browser.runtime.sendMessage({
-          //   action: 'speechError',
-          //   error: err
-          // });
+          if (err === "interrupted") {
+            console.debug('Speech was interrupted');
+          } else {
+            console.error('Speech error:', err);
+            browser.runtime.sendMessage({
+              action: 'speechError',
+              error: err
+            });
+          }
         },
         onSpeechPause: () => {
           console.debug('Speech paused.');
