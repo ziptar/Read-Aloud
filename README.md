@@ -4,7 +4,7 @@ Read webpage content aloud using text-to-speech.
 
 ## Description
 
-Read-Aloud is a browser extension that allows you to listen to the content of web pages instead of reading them. It uses text-to-speech technology to convert the text on a webpage into spoken words, making it easier to consume articles, blogs, and other online content, especially for those who prefer listening or have reading difficulties.
+This Read-Aloud extension serves as a practical example and educational resource for learning how to build browser extensions using the WXT framework. It demonstrates common patterns and features, allowing you to explore and understand the development process for cross-browser extensions. While functional as a text-to-speech tool for reading webpage content, its primary purpose in this repository is to serve as a codebase for developers to study and learn from.
 
 ## Features
 
