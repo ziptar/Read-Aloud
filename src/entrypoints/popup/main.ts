@@ -1,6 +1,6 @@
 import "./style.css";
-import { Reader, SpeechOptions } from "../modules/reader";
-import { SettingsManager } from "../modules/settings";
+import { Reader, SpeechOptions } from "../lib/reader";
+import { SettingsManager } from "../lib/settings";
 
 let speechOptions: SpeechOptions = {};
 

@@ -1,6 +1,6 @@
-import { SettingsManager } from "./modules/settings";
-import { SpeechOptions } from "./modules/reader";
-import { Logger } from "./modules/logger";
+import { SettingsManager } from "./lib/settings";
+import { SpeechOptions } from "./lib/reader";
+import { Logger } from "./lib/logger";
 
 class BackgroundService {
   private speechOptions: SpeechOptions | undefined;
