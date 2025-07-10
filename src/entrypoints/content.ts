@@ -12,38 +12,37 @@ class ContentScript {
   }
 
   private init(): void {
-    this.reader = new Reader({
-      onSpeechStart: () => {
-        this.logger.log("Speech started.");
-        browser.runtime.sendMessage({ action: "speechStarted" });
-      },
-      onSpeechEnd: () => {
-        this.logger.log("Speech ended.");
-        browser.runtime.sendMessage({ action: "speechEnded" });
-      },
-      onSpeechError: (error) => {
-        if (error === "interrupted") {
-          this.logger.log("Speech was interrupted");
-        } else {
-          console.error("Speech error:", error);
-          browser.runtime.sendMessage({
-            action: "speechError",
-            error: error,
-          });
-        }
-      },
-      onSpeechPause: () => {
-        this.logger.log("Speech paused.");
-        browser.runtime.sendMessage({ action: "speechPaused" });
-      },
-      onSpeechResume: () => {
-        this.logger.log("Speech resumed.");
-        browser.runtime.sendMessage({ action: "speechResumed" });
-      },
-      onSpeechStop: () => {
-        this.logger.log("Speech stopped.");
-        browser.runtime.sendMessage({ action: "speechStopped" });
-      },
+    this.reader = new Reader();
+    this.reader.on("start", () => {
+      this.logger.log("Speech started.");
+      browser.runtime.sendMessage({ action: "speechStarted" });
+    });
+    this.reader.on("end", () => {
+      this.logger.log("Speech ended.");
+      browser.runtime.sendMessage({ action: "speechEnded" });
+    });
+    this.reader.on("error", (error) => {
+      if (error.message === "interrupted") {
+        this.logger.log("Speech was interrupted");
+      } else {
+        console.error("Speech error:", error);
+        browser.runtime.sendMessage({
+          action: "speechError",
+          error: error,
+        });
+      }
+    });
+    this.reader.on("pause", () => {
+      this.logger.log("Speech paused.");
+      browser.runtime.sendMessage({ action: "speechPaused" });
+    });
+    this.reader.on("resume", () => {
+      this.logger.log("Speech resumed.");
+      browser.runtime.sendMessage({ action: "speechResumed" });
+    });
+    this.reader.on("stop", () => {
+      this.logger.log("Speech stopped.");
+      browser.runtime.sendMessage({ action: "speechStopped" });
     });
 
     // Listen for messages from the popup or background script
