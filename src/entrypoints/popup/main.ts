@@ -1,7 +1,9 @@
 import "./style.css";
 import { Reader, SpeechOptions } from "../lib/reader";
 import { SettingsManager } from "../lib/settings";
+import { Logger } from "../lib/logger";
 
+const logger = new Logger(true);
 let speechOptions: SpeechOptions = {};
 
 let settingsChanged = false;
@@ -96,21 +98,21 @@ async function loadContentScript() {
       .sendMessage(currentTab.id, { action: "ping" })
       .then(() => {
         // Content script is already loaded
-        console.debug("Content script is loaded successfully.");
+        logger.log("Content script is loaded successfully.");
       })
       .catch(async () => {
         // Content script is not loaded, inject it first
-        console.debug("Content script not loaded. Injecting it now.");
+        logger.log("Content script not loaded. Injecting it now.");
         await browser.scripting
           .executeScript({
             target: { tabId: currentTab?.id! },
             files: ["content-scripts/content.js"],
           })
           .then(() => {
-            console.debug("Content script injected successfully.");
+            logger.log("Content script injected successfully.");
           })
-          .catch((err) => {
-            console.error("Error loading content script:", err.message);
+          .catch((error) => {
+            console.error("Error loading content script:", error.message);
           });
       });
   }
@@ -160,8 +162,8 @@ function checkSpeechState() {
     .sendMessage(currentTab?.id!, {
       action: "getSpeechState",
     })
-    .catch((err) => {
-      console.error("Error checking speech state:", err);
+    .catch((error) => {
+      console.error("Error checking speech state:", error);
     });
 }
 
@@ -191,8 +193,8 @@ function startReading() {
       action: "startReading",
       options: speechOptions,
     })
-    .catch((err) => {
-      console.error("Error starting speech:", err.message);
+    .catch((error) => {
+      console.error("Error starting speech:", error.message);
       statusMessage.textContent = "Error starting speech. Please try again.";
     });
 }
@@ -201,8 +203,8 @@ function startReading() {
 function stopReading() {
   if (!isSpeaking && !isPaused) return;
 
-  browser.tabs.sendMessage(currentTab?.id!, { action: 'stopSpeaking' }).catch((err) => {
-    console.error('Error stopping speech:', err);
+  browser.tabs.sendMessage(currentTab?.id!, { action: 'stopSpeaking' }).catch((error) => {
+    console.error('Error stopping speech:', error);
     statusMessage.textContent = 'Error stopping speech. Please try again.';
   });
 }
@@ -223,8 +225,8 @@ function togglePause() {
       );
     }
     updateUI();
-  } catch (err) {
-    console.error('Error toggling pause:', err);
+  } catch (error) {
+    console.error('Error toggling pause:', error);
     statusMessage.textContent = 'Error controlling speech. Please try again.';
   }
 }
@@ -318,8 +320,8 @@ async function initialize() {
 
     // Check if reader is currently speaking
     checkSpeechState();
-  } catch (err) {
-    console.error("Error initializing:", err);
+  } catch (error) {
+    console.error("Error initializing:", error);
     statusMessage.textContent = "Error initializing. Please try again.";
   }
 }
