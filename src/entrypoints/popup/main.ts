@@ -4,7 +4,13 @@ import { SettingsManager } from "../lib/settings";
 import { Logger } from "../lib/logger";
 
 const logger = new Logger(true);
-let speechOptions: SpeechOptions = {};
+let speechOptions: SpeechOptions = {
+  voice: "",
+  rate: 1,
+  pitch: 1,
+  volume: 1,
+  lang: "en-US",
+};
 
 let settingsChanged = false;
 let currentTab: Browser.tabs.Tab | null = null;
@@ -72,7 +78,9 @@ const volumeRange = document.getElementById("volumeRange") as HTMLInputElement;
 const rateValue = document.getElementById("rateValue") as HTMLSpanElement;
 const pitchValue = document.getElementById("pitchValue") as HTMLSpanElement;
 const volumeValue = document.getElementById("volumeValue") as HTMLSpanElement;
-const statusMessage = document.getElementById("statusMessage") as HTMLDivElement;
+const statusMessage = document.getElementById(
+  "statusMessage"
+) as HTMLDivElement;
 
 // Get the current active tab
 async function getCurrentTab() {
@@ -131,11 +139,6 @@ async function loadVoices() {
       option.textContent = `${voice.name} (${voice.lang})`;
       voiceSelect.appendChild(option);
     });
-
-    // Select default voice
-    if (voices.length > 0) {
-      speechOptions.voice = voices[0].name;
-    }
   } catch (error) {
     console.error("Error loading voices:", error);
     statusMessage.textContent = "Error loading voices. Please try again.";
@@ -144,16 +147,16 @@ async function loadVoices() {
 
 // Apply settings to UI controls
 function applySettingsToUI() {
-  voiceSelect.value = speechOptions.voice!;
+  voiceSelect.value = speechOptions.voice;
 
-  rateRange.value = speechOptions.rate!.toString();
-  rateValue.textContent = speechOptions.rate!.toString();
+  rateRange.value = speechOptions.rate.toString();
+  rateValue.textContent = speechOptions.rate.toString();
 
-  pitchRange.value = speechOptions.pitch!.toString();
-  pitchValue.textContent = speechOptions.pitch!.toString();
+  pitchRange.value = speechOptions.pitch.toString();
+  pitchValue.textContent = speechOptions.pitch.toString();
 
-  volumeRange.value = speechOptions.volume!.toString();
-  volumeValue.textContent = speechOptions.volume!.toString();
+  volumeRange.value = speechOptions.volume.toString();
+  volumeValue.textContent = speechOptions.volume.toString();
 }
 
 // Check if reader is currently speaking
@@ -175,9 +178,9 @@ function updateUI() {
 
   if (isSpeaking) {
     readButton.innerHTML = '<span class="icon">▶</span> Reading...';
-    pauseButton.innerHTML = isPaused ?
-      '<span class="icon">▶</span> Resume' :
-      '<span class="icon">⏸</span> Pause';
+    pauseButton.innerHTML = isPaused
+      ? '<span class="icon">▶</span> Resume'
+      : '<span class="icon">⏸</span> Pause';
   } else {
     readButton.innerHTML = '<span class="icon">▶</span> Read Aloud';
     pauseButton.innerHTML = '<span class="icon">⏸</span> Pause';
@@ -203,10 +206,12 @@ function startReading() {
 function stopReading() {
   if (!isSpeaking && !isPaused) return;
 
-  browser.tabs.sendMessage(currentTab?.id!, { action: 'stopSpeaking' }).catch((error) => {
-    console.error('Error stopping speech:', error);
-    statusMessage.textContent = 'Error stopping speech. Please try again.';
-  });
+  browser.tabs
+    .sendMessage(currentTab?.id!, { action: "stopSpeaking" })
+    .catch((error) => {
+      console.error("Error stopping speech:", error);
+      statusMessage.textContent = "Error stopping speech. Please try again.";
+    });
 }
 
 // Pause or resume speech
@@ -220,47 +225,51 @@ function togglePause() {
       });
     } else {
       browser.tabs.sendMessage(currentTab?.id!, {
-        action: 'pauseSpeaking'
-      }
-      );
+        action: "pauseSpeaking",
+      });
     }
     updateUI();
   } catch (error) {
-    console.error('Error toggling pause:', error);
-    statusMessage.textContent = 'Error controlling speech. Please try again.';
+    console.error("Error toggling pause:", error);
+    statusMessage.textContent = "Error controlling speech. Please try again.";
   }
 }
 
 // Listen for messages from background script
 browser.runtime.onMessage.addListener((message) => {
-  if (message.action === 'speechStarted') {
+  if (message.action === "speechStarted") {
     isSpeaking = true;
     isPaused = false;
-    statusMessage.textContent = 'Reading page content...';
+    statusMessage.textContent = "Reading page content...";
     updateUI();
-  } else if (message.action === 'speechEnded' || message.action === 'speechStopped') {
+  } else if (
+    message.action === "speechEnded" ||
+    message.action === "speechStopped"
+  ) {
     isSpeaking = false;
     isPaused = false;
-    statusMessage.textContent = 'Finished reading.';
+    statusMessage.textContent = "Finished reading.";
     updateUI();
-  } else if (message.action === 'speechPaused') {
+  } else if (message.action === "speechPaused") {
     isPaused = true;
-    statusMessage.textContent = 'Paused reading.';
+    statusMessage.textContent = "Paused reading.";
     updateUI();
-  } else if (message.action === 'speechResumed') {
+  } else if (message.action === "speechResumed") {
     isPaused = false;
-    statusMessage.textContent = 'Resumed reading...';
+    statusMessage.textContent = "Resumed reading...";
     updateUI();
-  } else if (message.action === 'speechError') {
+  } else if (message.action === "speechError") {
     isSpeaking = false;
     isPaused = false;
-    statusMessage.textContent = `Error: ${message.error || 'Unknown error'}`;
+    statusMessage.textContent = `Error: ${message.error || "Unknown error"}`;
     updateUI();
-  } else if (message.action === 'updateSpeechState') {
+  } else if (message.action === "updateSpeechState") {
     isSpeaking = message.state.isSpeaking;
     isPaused = message.state.isPaused;
     if (isSpeaking) {
-      statusMessage.textContent = isPaused ? 'Paused reading.' : 'Reading page content...';
+      statusMessage.textContent = isPaused
+        ? "Paused reading."
+        : "Reading page content...";
     }
     updateUI();
   }
@@ -269,7 +278,7 @@ browser.runtime.onMessage.addListener((message) => {
 // Add event listeners
 readButton.addEventListener("click", startReading);
 stopButton.addEventListener("click", stopReading);
-pauseButton.addEventListener('click', togglePause);
+pauseButton.addEventListener("click", togglePause);
 voiceSelect.addEventListener("change", () => {
   speechOptions.voice = voiceSelect.value;
   settingsChanged = true;
