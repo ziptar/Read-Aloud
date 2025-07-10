@@ -35,7 +35,7 @@ export class Reader extends EventEmitter<ReaderEvents> {
   /**
    * Start speaking the provided text with the given options
    */
-  speak(text: string, options: SpeechOptions = {}): void {
+  speak(text: string, options?: SpeechOptions): void {
     // Stop any ongoing speech
     if (this.utterance) {
       window.speechSynthesis.cancel();
@@ -45,28 +45,16 @@ export class Reader extends EventEmitter<ReaderEvents> {
     this.utterance = new SpeechSynthesisUtterance(text);
 
     // Apply speech options
-    if (options.voice) {
+    if (options) {
       const selectedVoice = this.voices.find(
         (voice) => voice.name === options.voice
       );
       if (selectedVoice) {
         this.utterance.voice = selectedVoice;
       }
-    }
-
-    if (options.rate) {
       this.utterance.rate = options.rate;
-    }
-
-    if (options.pitch) {
       this.utterance.pitch = options.pitch;
-    }
-
-    if (options.volume) {
       this.utterance.volume = options.volume;
-    }
-
-    if (options.lang) {
       this.utterance.lang = options.lang;
     }
 
@@ -136,9 +124,9 @@ export class Reader extends EventEmitter<ReaderEvents> {
  * Options for speech synthesis
  */
 export interface SpeechOptions {
-  voice?: string;
-  rate?: number;
-  pitch?: number;
-  volume?: number;
-  lang?: string;
+  voice: string;
+  rate: number;
+  pitch: number;
+  volume: number;
+  lang: string;
 }
