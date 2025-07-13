@@ -13,7 +13,7 @@ let speechOptions: SpeechOptions = {
 };
 
 let settingsChanged = false;
-let currentTab: Browser.tabs.Tab | null = null;
+let currentTabId: number | undefined;
 
 // Speech synthesis state
 let isSpeaking = false;
@@ -85,13 +85,11 @@ const statusMessage = document.getElementById(
 // Get the current active tab
 async function getCurrentTab() {
   try {
-    const tabs = await browser.tabs.query({
+    const [tab] = await browser.tabs.query({
       active: true,
       currentWindow: true,
     });
-    if (tabs.length > 0) {
-      currentTab = tabs[0];
-    }
+    currentTabId = tab?.id;
   } catch (error) {
     console.error("Error getting current tab:", error);
     statusMessage.textContent = "Error accessing current tab.";
@@ -100,10 +98,10 @@ async function getCurrentTab() {
 
 // Load content script
 async function loadContentScript() {
-  if (currentTab?.id) {
+  if (currentTabId) {
     // First check if we can communicate with the content script
     await browser.tabs
-      .sendMessage(currentTab.id, { action: "ping" })
+      .sendMessage(currentTabId, { action: "ping" })
       .then(() => {
         // Content script is already loaded
         logger.log("Content script is loaded successfully.");
@@ -113,7 +111,7 @@ async function loadContentScript() {
         logger.log("Content script not loaded. Injecting it now.");
         await browser.scripting
           .executeScript({
-            target: { tabId: currentTab?.id! },
+            target: { tabId: currentTabId! },
             files: ["content-scripts/content.js"],
           })
           .then(() => {
@@ -162,7 +160,7 @@ function applySettingsToUI() {
 // Check if reader is currently speaking
 function checkSpeechState() {
   browser.tabs
-    .sendMessage(currentTab?.id!, {
+    .sendMessage(currentTabId!, {
       action: "getSpeechState",
     })
     .catch((error) => {
@@ -192,7 +190,7 @@ function startReading() {
   if (isSpeaking) return;
 
   browser.tabs
-    .sendMessage(currentTab?.id!, {
+    .sendMessage(currentTabId!, {
       action: "startReading",
       options: speechOptions,
     })
@@ -207,7 +205,7 @@ function stopReading() {
   if (!isSpeaking && !isPaused) return;
 
   browser.tabs
-    .sendMessage(currentTab?.id!, { action: "stopSpeaking" })
+    .sendMessage(currentTabId!, { action: "stopSpeaking" })
     .catch((error) => {
       console.error("Error stopping speech:", error);
       statusMessage.textContent = "Error stopping speech. Please try again.";
@@ -220,11 +218,11 @@ function togglePause() {
 
   try {
     if (isPaused) {
-      browser.tabs.sendMessage(currentTab?.id!, {
+      browser.tabs.sendMessage(currentTabId!, {
         action: "resumeSpeaking",
       });
     } else {
-      browser.tabs.sendMessage(currentTab?.id!, {
+      browser.tabs.sendMessage(currentTabId!, {
         action: "pauseSpeaking",
       });
     }
