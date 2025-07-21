@@ -37,9 +37,7 @@ export class Reader extends EventEmitter<ReaderEvents> {
    */
   speak(text: string, options?: SpeechOptions): void {
     // Stop any ongoing speech
-    if (this.utterance) {
-      window.speechSynthesis.cancel();
-    }
+    this.stop();
 
     // Create a new utterance with the provided text
     this.utterance = new SpeechSynthesisUtterance(text);
