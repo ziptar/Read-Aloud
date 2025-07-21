@@ -1,6 +1,5 @@
-import { Reader, SpeechOptions } from "../lib/reader";
-import { SettingsManager } from "../lib/settings";
-import { Logger } from "../lib/logger";
+import { Reader, SpeechOptions, SettingsManager, Logger } from "../../lib/";
+
 class PopupController {
   private logger = new Logger(true);
   private speechOptions: SpeechOptions = {

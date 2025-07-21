@@ -1,6 +1,5 @@
 import { Readability } from "@mozilla/readability";
-import { Reader } from "./lib/reader";
-import { Logger } from "./lib/logger";
+import { Reader, Logger } from "../lib/";
 
 class ContentScript {
   private reader: Reader | undefined;

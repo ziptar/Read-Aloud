@@ -1,6 +1,4 @@
-import { SettingsManager } from "./lib/settings";
-import { SpeechOptions } from "./lib/reader";
-import { Logger } from "./lib/logger";
+import { SettingsManager, SpeechOptions, Logger } from "../lib/";
 
 class BackgroundService {
   private speechOptions: SpeechOptions | undefined;
