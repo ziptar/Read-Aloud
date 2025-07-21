@@ -1,4 +1,10 @@
-import { SettingsManager, TTSSettings, Logger } from "../lib/";
+import {
+  SettingsManager,
+  TTSSettings,
+  Logger,
+  Message,
+  MessageBus,
+} from "../lib/";
 
 class BackgroundService {
   private ttsSettings!: TTSSettings;
@@ -54,51 +60,54 @@ class BackgroundService {
 
       try {
         // First check if we can communicate with the content script
-        await browser.tabs.sendMessage(tab.id, { action: "ping" });
+        await MessageBus.sendToContent({ type: "PING", tabId: tab.id });
         // Content script is already loaded, send the readAloud message
         this.logger.log(
-          "Content script is loaded. Sending startSpeaking message."
+          "Content script is loaded. Sending SPEAK_TEXT message."
         );
-        await browser.tabs.sendMessage(tab.id, {
-          action: "stopSpeaking",
-          options: this.ttsSettings,
+        await MessageBus.sendToContent({
+          type: "STOP_SPEECH",
+          tabId: tab.id,
         });
-        return browser.tabs.sendMessage(tab.id, {
-          action: "startSpeaking",
-          options: this.ttsSettings,
+        return MessageBus.sendToContent({
+          type: "SPEAK_TEXT",
+          payload: this.ttsSettings,
+          tabId: tab.id,
         });
       } catch (error) {
         try {
           // Content script is not loaded, inject it first
-          this.logger.log("Content script is not loaded. Injecting it now.");
+          this.logger.log("Content script not loaded. Injecting it now.");
           await browser.scripting.executeScript({
             target: { tabId: tab.id },
             files: ["content-scripts/content.js"],
           });
           this.logger.log("Content script injected successfully.");
           this.logger.log(
-            "Sending startSpeaking message to newly injected content script."
+            "Sending SPEAK_TEXT message to newly injected content script."
           );
-          return browser.tabs.sendMessage(tab.id, {
-            action: "startSpeaking",
-            options: this.ttsSettings,
+
+          return MessageBus.sendToContent({
+            type: "SPEAK_TEXT",
+            payload: this.ttsSettings,
+            tabId: tab.id,
           });
         } catch (error) {
-          console.error("Failed to inject content script: ", error);
+          console.error("Failed to inject content script:", error);
         }
       }
     }
   }
 
-  private handleMessage(message: any): void {
-    this.logger.log("Background script received message:", message);
-    if (message.action === "saveSettings") {
+  private handleMessage(message: Message): void {
+    //this.logger.log("Background script received message:", message);
+    if (message.type === "SAVE_SETTINGS") {
       this.logger.log(
-        "Received saveSettings message with settings:",
-        message.options
+        "Received SAVE_SETTINGS message with settings:",
+        message.payload
       );
-      this.ttsSettings = message.options;
-      SettingsManager.saveSettings(message.options);
+      this.ttsSettings = message.payload;
+      SettingsManager.saveSettings(message.payload);
     }
   }
 }
