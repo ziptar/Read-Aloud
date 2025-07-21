@@ -5,10 +5,77 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Read Aloud: Text-to-Speech Voice Reader</title>
     <meta name="manifest.type" content="browser_action" />
+    <link rel="stylesheet" href="./style.css" />
   </head>
 
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <div class="read-aloud-container">
+        <h1>Read Aloud</h1>
+
+        <div class="controls">
+          <button id="readButton" class="primary-button">
+            <span class="icon">▶</span> Read Aloud
+          </button>
+          <button id="pauseButton" class="control-button" disabled>
+            <span class="icon">⏸</span> Pause
+          </button>
+          <button id="stopButton" class="control-button" disabled>
+            <span class="icon">⏹</span> Stop
+          </button>
+        </div>
+
+        <div class="settings">
+          <h2>Settings</h2>
+
+          <div class="setting-group">
+            <label for="voiceSelect">Voice:</label>
+            <select id="voiceSelect"></select>
+          </div>
+
+          <div class="setting-group">
+            <label for="rateRange">Speed:</label>
+            <input
+              type="range"
+              id="rateRange"
+              min="0.5"
+              max="2"
+              step="0.1"
+              value="1"
+            />
+            <span id="rateValue">1.0</span>
+          </div>
+
+          <div class="setting-group">
+            <label for="pitchRange">Pitch:</label>
+            <input
+              type="range"
+              id="pitchRange"
+              min="0.5"
+              max="2"
+              step="0.1"
+              value="1"
+            />
+            <span id="pitchValue">1.0</span>
+          </div>
+
+          <div class="setting-group">
+            <label for="volumeRange">Volume:</label>
+            <input
+              type="range"
+              id="volumeRange"
+              min="0"
+              max="1"
+              step="0.1"
+              value="1"
+            />
+            <span id="volumeValue">1.0</span>
+          </div>
+        </div>
+
+        <div class="status" id="statusMessage"></div>
+      </div>
+    </div>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>
