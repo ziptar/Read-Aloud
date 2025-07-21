@@ -19,11 +19,11 @@ export class SettingsManager {
     try {
       const result = await browser.storage.local.get("settings");
       const settings = result.settings || this.defaults;
-      this._logger.log("Settings loaded successfully.");
+      this._logger.log("User settings successfully loaded.");
       return settings;
     } catch (error) {
-      console.error("Failed to load settings:", error);
-      console.log("Falling back to default settings.");
+      console.error("Error retrieving user settings from storage:", error);
+      console.log("Proceeding with default settings.");
       return this.defaults;
     }
   }
@@ -32,10 +32,10 @@ export class SettingsManager {
     browser.storage.local
       .set({ settings })
       .then(() => {
-        this._logger.log("Settings saved successfully.");
+        this._logger.log("User settings successfully saved.");
       })
       .catch((error) => {
-        console.error("Failed to save settings:", error);
+        console.error("Error saving user settings to storage:", error);
       });
   }
 }
