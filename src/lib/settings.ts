@@ -1,5 +1,4 @@
-import { SpeechOptions } from "./reader";
-import { Logger } from "./logger";
+import { SpeechOptions, Logger } from "./";
 
 export class SettingsManager {
   private static _logger: Logger = new Logger(false);
