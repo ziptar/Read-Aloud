@@ -10,6 +10,7 @@ class ContentScript {
     this.logger = new Logger(enableLogger || false);
     this.reader = new Reader();
     this.setupEventListener();
+    this.logger.log("Content script initialized and listening for messages.");
   }
 
   private setupEventListener(): void {
@@ -22,16 +23,16 @@ class ContentScript {
   }
   private setupReaderEventListeners() {
     this.reader!.on("start", () => {
-      this.logger.log("Speech started.");
+      this.logger.log("Speech playback has started.");
       browser.runtime.sendMessage({ action: "speechStarted" });
     });
     this.reader!.on("end", () => {
-      this.logger.log("Speech ended.");
+      this.logger.log("Speech playback has concluded.");
       browser.runtime.sendMessage({ action: "speechEnded" });
     });
     this.reader!.on("error", (error) => {
       if (error.message !== "interrupted") {
-        console.error("Speech error:", error);
+        console.error("An error occurred during speech playback:", error);
         browser.runtime.sendMessage({
           action: "speechError",
           error: error,
@@ -39,15 +40,15 @@ class ContentScript {
       }
     });
     this.reader!.on("pause", () => {
-      this.logger.log("Speech paused.");
+      this.logger.log("Speech playback paused.");
       browser.runtime.sendMessage({ action: "speechPaused" });
     });
     this.reader!.on("resume", () => {
-      this.logger.log("Speech resumed.");
+      this.logger.log("Speech playback resumed.");
       browser.runtime.sendMessage({ action: "speechResumed" });
     });
     this.reader!.on("stop", () => {
-      this.logger.log("Speech stopped.");
+      this.logger.log("Speech playback stopped.");
       browser.runtime.sendMessage({ action: "speechStopped" });
     });
   }
@@ -61,7 +62,6 @@ class ContentScript {
       //   this.logger.log("Received ping.");
       // },
       startSpeaking: () => {
-        console.log("Received startSpeaking", this);
         // Extract selected text or page content
         const selectedText = window.getSelection()?.toString();
         const textToRead =
@@ -96,7 +96,7 @@ class ContentScript {
       const article = reader.parse();
       return article?.textContent?.trim();
     } catch (error) {
-      console.error("Error extracting readable content:", error);
+      console.error("Failed to extract readable content from the page:", error);
     }
   }
 }
