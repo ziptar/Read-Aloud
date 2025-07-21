@@ -1,7 +1,7 @@
-import { SettingsManager, SpeechOptions, Logger } from "../lib/";
+import { SettingsManager, TTSSettings, Logger } from "../lib/";
 
 class BackgroundService {
-  private speechOptions: SpeechOptions | undefined;
+  private ttsSettings!: TTSSettings;
   private readonly CONTEXT_MENU_ID = "read-aloud-context-menu";
   private logger: Logger;
 
@@ -14,7 +14,7 @@ class BackgroundService {
   private init(): void {
     SettingsManager.enableLogger(this.logger.enabled);
     SettingsManager.loadSettings().then((settings) => {
-      this.speechOptions = settings;
+      this.ttsSettings = settings;
     });
 
     // --- Context Menu Setup ---
@@ -61,11 +61,11 @@ class BackgroundService {
         );
         await browser.tabs.sendMessage(tab.id, {
           action: "stopSpeaking",
-          options: this.speechOptions,
+          options: this.ttsSettings,
         });
         return browser.tabs.sendMessage(tab.id, {
           action: "startSpeaking",
-          options: this.speechOptions,
+          options: this.ttsSettings,
         });
       } catch (error) {
         try {
@@ -81,7 +81,7 @@ class BackgroundService {
           );
           return browser.tabs.sendMessage(tab.id, {
             action: "startSpeaking",
-            options: this.speechOptions,
+            options: this.ttsSettings,
           });
         } catch (error) {
           console.error("Failed to inject content script: ", error);
@@ -97,7 +97,7 @@ class BackgroundService {
         "Received saveSettings message with settings:",
         message.options
       );
-      this.speechOptions = message.options;
+      this.ttsSettings = message.options;
       SettingsManager.saveSettings(message.options);
     }
   }
