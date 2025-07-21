@@ -1,15 +1,9 @@
-import { Reader, SpeechOptions, SettingsManager, Logger } from "../../lib/";
+import { Reader, TTSSettings, SettingsManager, Logger, PlaybackState } from "../../lib/";
 
 class PopupController {
   private logger = new Logger(true);
-  private speechOptions: SpeechOptions = {
-    voice: "",
-    rate: 1,
-    pitch: 1,
-    volume: 1,
-    lang: "en-US",
-  };
-  private playbackState = {
+  private ttsSettings!: TTSSettings;
+  private playbackState: PlaybackState = {
     isPlaying: false,
     isPaused: false,
   };
@@ -72,7 +66,7 @@ class PopupController {
       await this.loadVoices();
 
       // Load saved settings first
-      this.speechOptions = await SettingsManager.loadSettings();
+      this.ttsSettings = await SettingsManager.loadSettings();
 
       // Apply settings to UI
       this.applySettingsToUI();
@@ -90,7 +84,7 @@ class PopupController {
       if (this.settingsChanged) {
         browser.runtime.sendMessage({
           action: "saveSettings",
-          options: this.speechOptions,
+          options: this.ttsSettings,
         });
       }
     });
@@ -142,21 +136,21 @@ class PopupController {
     this.stopButton.addEventListener("click", () => this.stopSpeaking());
     this.pauseButton.addEventListener("click", () => this.togglePause());
     this.voiceSelect.addEventListener("change", () => {
-      this.speechOptions.voice = this.voiceSelect.value;
+      this.ttsSettings.voice = this.voiceSelect.value;
       this.settingsChanged = true;
     });
     this.rateRange.addEventListener("input", () => {
-      this.speechOptions.rate = parseFloat(this.rateRange.value);
+      this.ttsSettings.rate = parseFloat(this.rateRange.value);
       this.rateValue.textContent = this.rateRange.value;
       this.settingsChanged = true;
     });
     this.pitchRange.addEventListener("input", () => {
-      this.speechOptions.pitch = parseFloat(this.pitchRange.value);
+      this.ttsSettings.pitch = parseFloat(this.pitchRange.value);
       this.pitchValue.textContent = this.pitchRange.value;
       this.settingsChanged = true;
     });
     this.volumeRange.addEventListener("input", () => {
-      this.speechOptions.volume = parseFloat(this.volumeRange.value);
+      this.ttsSettings.volume = parseFloat(this.volumeRange.value);
       this.volumeValue.textContent = this.volumeRange.value;
       this.settingsChanged = true;
     });
@@ -221,16 +215,16 @@ class PopupController {
 
   // Apply settings to UI controls
   private applySettingsToUI() {
-    this.voiceSelect.value = this.speechOptions.voice;
+    this.voiceSelect.value = this.ttsSettings.voice;
 
-    this.rateRange.value = this.speechOptions.rate.toString();
-    this.rateValue.textContent = this.speechOptions.rate.toString();
+    this.rateRange.value = this.ttsSettings.rate.toString();
+    this.rateValue.textContent = this.ttsSettings.rate.toString();
 
-    this.pitchRange.value = this.speechOptions.pitch.toString();
-    this.pitchValue.textContent = this.speechOptions.pitch.toString();
+    this.pitchRange.value = this.ttsSettings.pitch.toString();
+    this.pitchValue.textContent = this.ttsSettings.pitch.toString();
 
-    this.volumeRange.value = this.speechOptions.volume.toString();
-    this.volumeValue.textContent = this.speechOptions.volume.toString();
+    this.volumeRange.value = this.ttsSettings.volume.toString();
+    this.volumeValue.textContent = this.ttsSettings.volume.toString();
   }
 
   // Check if reader is currently speaking
@@ -269,7 +263,7 @@ class PopupController {
     browser.tabs
       .sendMessage(this.currentTabId!, {
         action: "startSpeaking",
-        options: this.speechOptions,
+        options: this.ttsSettings,
       })
       .catch((error) => {
         console.error("Error starting speech:", error.message);
