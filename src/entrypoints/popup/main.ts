@@ -1,337 +1,321 @@
-import "./style.css";
 import { Reader, SpeechOptions } from "../lib/reader";
 import { SettingsManager } from "../lib/settings";
 import { Logger } from "../lib/logger";
+class PopupController {
+  private logger = new Logger(true);
+  private speechOptions: SpeechOptions = {
+    voice: "",
+    rate: 1,
+    pitch: 1,
+    volume: 1,
+    lang: "en-US",
+  };
+  private playbackState = {
+    isPlaying: false,
+    isPaused: false,
+  };
+  private settingsChanged = false;
+  private currentTabId?: number;
+  // Get DOM elements
+  private readButton!: HTMLButtonElement;
+  private pauseButton!: HTMLButtonElement;
+  private stopButton!: HTMLButtonElement;
+  private voiceSelect!: HTMLSelectElement;
+  private rateRange!: HTMLInputElement;
+  private pitchRange!: HTMLInputElement;
+  private volumeRange!: HTMLInputElement;
+  private rateValue!: HTMLSpanElement;
+  private pitchValue!: HTMLSpanElement;
+  private volumeValue!: HTMLSpanElement;
+  private statusMessage!: HTMLDivElement;
 
-const logger = new Logger(true);
-let speechOptions: SpeechOptions = {
-  voice: "",
-  rate: 1,
-  pitch: 1,
-  volume: 1,
-  lang: "en-US",
-};
-
-let settingsChanged = false;
-let currentTabId: number | undefined;
-
-// Speech synthesis state
-let isSpeaking = false;
-let isPaused = false;
-
-// Initialize the popup UI
-document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
-  <div class="read-aloud-container">
-    <h1>Read Aloud</h1>
-    
-    <div class="controls">
-      <button id="readButton" class="primary-button">
-        <span class="icon">▶</span> Read Aloud
-      </button>
-      <button id="pauseButton" class="control-button" disabled>
-        <span class="icon">⏸</span> Pause
-      </button>
-      <button id="stopButton" class="control-button" disabled>
-        <span class="icon">⏹</span> Stop
-      </button>
-    </div>
-    
-    <div class="settings">
-      <h2>Settings</h2>
-      
-      <div class="setting-group">
-        <label for="voiceSelect">Voice:</label>
-        <select id="voiceSelect"></select>
-      </div>
-      
-      <div class="setting-group">
-        <label for="rateRange">Speed:</label>
-        <input type="range" id="rateRange" min="0.5" max="2" step="0.1" value="1">
-        <span id="rateValue">1.0</span>
-      </div>
-      
-      <div class="setting-group">
-        <label for="pitchRange">Pitch:</label>
-        <input type="range" id="pitchRange" min="0.5" max="2" step="0.1" value="1">
-        <span id="pitchValue">1.0</span>
-      </div>
-      
-      <div class="setting-group">
-        <label for="volumeRange">Volume:</label>
-        <input type="range" id="volumeRange" min="0" max="1" step="0.1" value="1">
-        <span id="volumeValue">1.0</span>
-      </div>
-    </div>
-    
-    <div class="status" id="statusMessage"></div>
-  </div>
-`;
-
-// Get DOM elements
-const readButton = document.getElementById("readButton") as HTMLButtonElement;
-const pauseButton = document.getElementById("pauseButton") as HTMLButtonElement;
-const stopButton = document.getElementById("stopButton") as HTMLButtonElement;
-const voiceSelect = document.getElementById("voiceSelect") as HTMLSelectElement;
-const rateRange = document.getElementById("rateRange") as HTMLInputElement;
-const pitchRange = document.getElementById("pitchRange") as HTMLInputElement;
-const volumeRange = document.getElementById("volumeRange") as HTMLInputElement;
-const rateValue = document.getElementById("rateValue") as HTMLSpanElement;
-const pitchValue = document.getElementById("pitchValue") as HTMLSpanElement;
-const volumeValue = document.getElementById("volumeValue") as HTMLSpanElement;
-const statusMessage = document.getElementById(
-  "statusMessage"
-) as HTMLDivElement;
-
-// Get the current active tab
-async function getCurrentTab() {
-  try {
-    const [tab] = await browser.tabs.query({
-      active: true,
-      currentWindow: true,
-    });
-    currentTabId = tab?.id;
-  } catch (error) {
-    console.error("Error getting current tab:", error);
-    statusMessage.textContent = "Error accessing current tab.";
+  constructor() {
+    this.initializeElements();
+    this.init();
   }
-}
+  private initializeElements() {
+    this.readButton = document.getElementById(
+      "readButton"
+    ) as HTMLButtonElement;
+    this.pauseButton = document.getElementById(
+      "pauseButton"
+    ) as HTMLButtonElement;
+    this.stopButton = document.getElementById(
+      "stopButton"
+    ) as HTMLButtonElement;
+    this.voiceSelect = document.getElementById(
+      "voiceSelect"
+    ) as HTMLSelectElement;
+    this.rateRange = document.getElementById("rateRange") as HTMLInputElement;
+    this.pitchRange = document.getElementById("pitchRange") as HTMLInputElement;
+    this.volumeRange = document.getElementById(
+      "volumeRange"
+    ) as HTMLInputElement;
+    this.rateValue = document.getElementById("rateValue") as HTMLSpanElement;
+    this.pitchValue = document.getElementById("pitchValue") as HTMLSpanElement;
+    this.volumeValue = document.getElementById(
+      "volumeValue"
+    ) as HTMLSpanElement;
+    this.statusMessage = document.getElementById(
+      "statusMessage"
+    ) as HTMLDivElement;
+  }
+  private async init() {
+    try {
+      await this.getCurrentTab();
+      // Setup event listeners
+      this.logger.log("Setup event listeners.");
+      this.setupEventListeners();
+      // Load content script
+      await this.loadContentScript();
 
-// Load content script
-async function loadContentScript() {
-  if (currentTabId) {
-    // First check if we can communicate with the content script
-    await browser.tabs
-      .sendMessage(currentTabId, { action: "ping" })
-      .then(() => {
+      // Load voices
+      await this.loadVoices();
+
+      // Load saved settings first
+      this.speechOptions = await SettingsManager.loadSettings();
+
+      // Apply settings to UI
+      this.applySettingsToUI();
+
+      // Check if reader is currently speaking
+      await this.checkSpeechState();
+    } catch (error) {
+      console.error("Error initializing:", error);
+      this.statusMessage.textContent = "Error initializing. Please try again.";
+    }
+  }
+  private setupEventListeners() {
+    // Save settings when popup is closed
+    window.addEventListener("blur", () => {
+      if (this.settingsChanged) {
+        browser.runtime.sendMessage({
+          action: "saveSettings",
+          options: this.speechOptions,
+        });
+      }
+    });
+
+    // Listen for messages from background script
+    browser.runtime.onMessage.addListener((message) => {
+      if (message.action === "speechStarted") {
+        this.playbackState.isPlaying = true;
+        this.playbackState.isPaused = false;
+        this.statusMessage.textContent = "Reading page content...";
+        this.updateUI();
+      } else if (
+        message.action === "speechEnded" ||
+        message.action === "speechStopped"
+      ) {
+        this.playbackState.isPlaying = false;
+        this.playbackState.isPaused = false;
+        this.statusMessage.textContent = "Finished reading.";
+        this.updateUI();
+      } else if (message.action === "speechPaused") {
+        this.playbackState.isPaused = true;
+        this.statusMessage.textContent = "Paused reading.";
+        this.updateUI();
+      } else if (message.action === "speechResumed") {
+        this.playbackState.isPaused = false;
+        this.statusMessage.textContent = "Resumed reading...";
+        this.updateUI();
+      } else if (message.action === "speechError") {
+        this.playbackState.isPlaying = false;
+        this.playbackState.isPaused = false;
+        this.statusMessage.textContent = `Error: ${
+          message.error || "Unknown error"
+        }`;
+        this.updateUI();
+      } else if (message.action === "updateSpeechState") {
+        this.playbackState.isPlaying = message.state.isSpeaking;
+        this.playbackState.isPaused = message.state.isPaused;
+        if (this.playbackState.isPlaying) {
+          this.statusMessage.textContent = this.playbackState.isPaused
+            ? "Paused reading."
+            : "Reading page content...";
+        }
+        this.updateUI();
+      }
+    });
+
+    // Add event listeners
+    this.readButton.addEventListener("click", () => this.startSpeaking());
+    this.stopButton.addEventListener("click", () => this.stopSpeaking());
+    this.pauseButton.addEventListener("click", () => this.togglePause());
+    this.voiceSelect.addEventListener("change", () => {
+      this.speechOptions.voice = this.voiceSelect.value;
+      this.settingsChanged = true;
+    });
+    this.rateRange.addEventListener("input", () => {
+      this.speechOptions.rate = parseFloat(this.rateRange.value);
+      this.rateValue.textContent = this.rateRange.value;
+      this.settingsChanged = true;
+    });
+    this.pitchRange.addEventListener("input", () => {
+      this.speechOptions.pitch = parseFloat(this.pitchRange.value);
+      this.pitchValue.textContent = this.pitchRange.value;
+      this.settingsChanged = true;
+    });
+    this.volumeRange.addEventListener("input", () => {
+      this.speechOptions.volume = parseFloat(this.volumeRange.value);
+      this.volumeValue.textContent = this.volumeRange.value;
+      this.settingsChanged = true;
+    });
+  }
+  // Get the current active tab
+  private async getCurrentTab() {
+    try {
+      const [tab] = await browser.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+      this.currentTabId = tab?.id;
+    } catch (error) {
+      console.error("Error getting current tab:", error);
+      this.statusMessage.textContent = "Error accessing current tab.";
+    }
+  }
+
+  // Load content script
+  private async loadContentScript() {
+    if (this.currentTabId) {
+      try {
+        // First check if we can communicate with the content script
+        await browser.tabs.sendMessage(this.currentTabId, { action: "ping" });
         // Content script is already loaded
-        logger.log("Content script is loaded successfully.");
-      })
-      .catch(async () => {
-        // Content script is not loaded, inject it first
-        logger.log("Content script not loaded. Injecting it now.");
-        await browser.scripting
-          .executeScript({
-            target: { tabId: currentTabId! },
+        this.logger.log("Content script is loaded.");
+      } catch (error) {
+        try {
+          // Content script is not loaded, inject it first
+          this.logger.log("Content script not loaded. Injecting it now.");
+          await browser.scripting.executeScript({
+            target: { tabId: this.currentTabId! },
             files: ["content-scripts/content.js"],
-          })
-          .then(() => {
-            logger.log("Content script injected successfully.");
-          })
-          .catch((error) => {
-            console.error("Error loading content script:", error.message);
           });
+          this.logger.log("Content script injected successfully.");
+        } catch (error: any) {
+          console.error("Failed to inject content script:", error.message);
+        }
+      }
+    }
+  }
+
+  // Load available voices
+  private async loadVoices() {
+    try {
+      const voices = await Reader.getVoices();
+
+      // Populate voice select dropdown
+      this.voiceSelect.innerHTML = "";
+      voices.forEach((voice) => {
+        const option = document.createElement("option");
+        option.value = voice.name;
+        option.textContent = `${voice.name} (${voice.lang})`;
+        this.voiceSelect.appendChild(option);
+      });
+    } catch (error) {
+      console.error("Error loading voices:", error);
+      this.statusMessage.textContent =
+        "Error loading voices. Please try again.";
+    }
+  }
+
+  // Apply settings to UI controls
+  private applySettingsToUI() {
+    this.voiceSelect.value = this.speechOptions.voice;
+
+    this.rateRange.value = this.speechOptions.rate.toString();
+    this.rateValue.textContent = this.speechOptions.rate.toString();
+
+    this.pitchRange.value = this.speechOptions.pitch.toString();
+    this.pitchValue.textContent = this.speechOptions.pitch.toString();
+
+    this.volumeRange.value = this.speechOptions.volume.toString();
+    this.volumeValue.textContent = this.speechOptions.volume.toString();
+  }
+
+  // Check if reader is currently speaking
+  private async checkSpeechState() {
+    await browser.tabs
+      .sendMessage(this.currentTabId!, {
+        action: "getSpeechState",
+      })
+      .catch((error) => {
+        console.error("Error checking speech state:", error);
       });
   }
-}
 
-// Load available voices
-async function loadVoices() {
-  try {
-    const voices = await Reader.getVoices();
+  // Update UI based on speech state
+  private updateUI() {
+    this.readButton.disabled = this.playbackState.isPlaying;
+    this.pauseButton.disabled = !this.playbackState.isPlaying;
+    this.stopButton.disabled =
+      !this.playbackState.isPlaying && !this.playbackState.isPaused;
 
-    // Populate voice select dropdown
-    voiceSelect.innerHTML = "";
-    voices.forEach((voice) => {
-      const option = document.createElement("option");
-      option.value = voice.name;
-      option.textContent = `${voice.name} (${voice.lang})`;
-      voiceSelect.appendChild(option);
-    });
-  } catch (error) {
-    console.error("Error loading voices:", error);
-    statusMessage.textContent = "Error loading voices. Please try again.";
-  }
-}
-
-// Apply settings to UI controls
-function applySettingsToUI() {
-  voiceSelect.value = speechOptions.voice;
-
-  rateRange.value = speechOptions.rate.toString();
-  rateValue.textContent = speechOptions.rate.toString();
-
-  pitchRange.value = speechOptions.pitch.toString();
-  pitchValue.textContent = speechOptions.pitch.toString();
-
-  volumeRange.value = speechOptions.volume.toString();
-  volumeValue.textContent = speechOptions.volume.toString();
-}
-
-// Check if reader is currently speaking
-function checkSpeechState() {
-  browser.tabs
-    .sendMessage(currentTabId!, {
-      action: "getSpeechState",
-    })
-    .catch((error) => {
-      console.error("Error checking speech state:", error);
-    });
-}
-
-// Update UI based on speech state
-function updateUI() {
-  readButton.disabled = isSpeaking;
-  pauseButton.disabled = !isSpeaking;
-  stopButton.disabled = !isSpeaking && !isPaused;
-
-  if (isSpeaking) {
-    readButton.innerHTML = '<span class="icon">▶</span> Reading...';
-    pauseButton.innerHTML = isPaused
-      ? '<span class="icon">▶</span> Resume'
-      : '<span class="icon">⏸</span> Pause';
-  } else {
-    readButton.innerHTML = '<span class="icon">▶</span> Read Aloud';
-    pauseButton.innerHTML = '<span class="icon">⏸</span> Pause';
-  }
-}
-
-// Start reading the page content
-function startReading() {
-  if (isSpeaking) return;
-
-  browser.tabs
-    .sendMessage(currentTabId!, {
-      action: "startReading",
-      options: speechOptions,
-    })
-    .catch((error) => {
-      console.error("Error starting speech:", error.message);
-      statusMessage.textContent = "Error starting speech. Please try again.";
-    });
-}
-
-// Stop speech
-function stopReading() {
-  if (!isSpeaking && !isPaused) return;
-
-  browser.tabs
-    .sendMessage(currentTabId!, { action: "stopSpeaking" })
-    .catch((error) => {
-      console.error("Error stopping speech:", error);
-      statusMessage.textContent = "Error stopping speech. Please try again.";
-    });
-}
-
-// Pause or resume speech
-function togglePause() {
-  if (!isSpeaking) return;
-
-  try {
-    if (isPaused) {
-      browser.tabs.sendMessage(currentTabId!, {
-        action: "resumeSpeaking",
-      });
+    if (this.playbackState.isPlaying) {
+      this.readButton.innerHTML = '<span class="icon">▶</span> Reading...';
+      this.pauseButton.innerHTML = this.playbackState.isPaused
+        ? '<span class="icon">▶</span> Resume'
+        : '<span class="icon">⏸</span> Pause';
     } else {
-      browser.tabs.sendMessage(currentTabId!, {
-        action: "pauseSpeaking",
+      this.readButton.innerHTML = '<span class="icon">▶</span> Read Aloud';
+      this.pauseButton.innerHTML = '<span class="icon">⏸</span> Pause';
+    }
+  }
+
+  // Start reading the page content
+  private startSpeaking() {
+    if (this.playbackState.isPlaying) return;
+
+    browser.tabs
+      .sendMessage(this.currentTabId!, {
+        action: "startSpeaking",
+        options: this.speechOptions,
+      })
+      .catch((error) => {
+        console.error("Error starting speech:", error.message);
+        this.statusMessage.textContent =
+          "Error starting speech. Please try again.";
       });
+  }
+
+  // Stop speech
+  private stopSpeaking() {
+    if (!this.playbackState.isPlaying && !this.playbackState.isPaused) return;
+
+    browser.tabs
+      .sendMessage(this.currentTabId!, { action: "stopSpeaking" })
+      .catch((error) => {
+        console.error("Error stopping speech:", error);
+        this.statusMessage.textContent =
+          "Error stopping speech. Please try again.";
+      });
+  }
+
+  // Pause or resume speech
+  private togglePause() {
+    if (!this.playbackState.isPlaying) return;
+
+    try {
+      if (this.playbackState.isPaused) {
+        browser.tabs.sendMessage(this.currentTabId!, {
+          action: "resumeSpeaking",
+        });
+      } else {
+        browser.tabs.sendMessage(this.currentTabId!, {
+          action: "pauseSpeaking",
+        });
+      }
+      this.updateUI();
+    } catch (error) {
+      console.error("Error toggling pause:", error);
+      this.statusMessage.textContent =
+        "Error controlling speech. Please try again.";
     }
-    updateUI();
-  } catch (error) {
-    console.error("Error toggling pause:", error);
-    statusMessage.textContent = "Error controlling speech. Please try again.";
   }
 }
 
-// Listen for messages from background script
-browser.runtime.onMessage.addListener((message) => {
-  if (message.action === "speechStarted") {
-    isSpeaking = true;
-    isPaused = false;
-    statusMessage.textContent = "Reading page content...";
-    updateUI();
-  } else if (
-    message.action === "speechEnded" ||
-    message.action === "speechStopped"
-  ) {
-    isSpeaking = false;
-    isPaused = false;
-    statusMessage.textContent = "Finished reading.";
-    updateUI();
-  } else if (message.action === "speechPaused") {
-    isPaused = true;
-    statusMessage.textContent = "Paused reading.";
-    updateUI();
-  } else if (message.action === "speechResumed") {
-    isPaused = false;
-    statusMessage.textContent = "Resumed reading...";
-    updateUI();
-  } else if (message.action === "speechError") {
-    isSpeaking = false;
-    isPaused = false;
-    statusMessage.textContent = `Error: ${message.error || "Unknown error"}`;
-    updateUI();
-  } else if (message.action === "updateSpeechState") {
-    isSpeaking = message.state.isSpeaking;
-    isPaused = message.state.isPaused;
-    if (isSpeaking) {
-      statusMessage.textContent = isPaused
-        ? "Paused reading."
-        : "Reading page content...";
-    }
-    updateUI();
-  }
+// Initialize popup when DOM is loaded
+document.addEventListener("DOMContentLoaded", () => {
+  new PopupController();
 });
-
-// Add event listeners
-readButton.addEventListener("click", startReading);
-stopButton.addEventListener("click", stopReading);
-pauseButton.addEventListener("click", togglePause);
-voiceSelect.addEventListener("change", () => {
-  speechOptions.voice = voiceSelect.value;
-  settingsChanged = true;
-});
-rateRange.addEventListener("input", () => {
-  speechOptions.rate = parseFloat(rateRange.value);
-  rateValue.textContent = rateRange.value;
-  settingsChanged = true;
-});
-pitchRange.addEventListener("input", () => {
-  speechOptions.pitch = parseFloat(pitchRange.value);
-  pitchValue.textContent = pitchRange.value;
-  settingsChanged = true;
-});
-volumeRange.addEventListener("input", () => {
-  speechOptions.volume = parseFloat(volumeRange.value);
-  volumeValue.textContent = volumeRange.value;
-  settingsChanged = true;
-});
-
-// Save settings when popup is closed
-window.addEventListener("blur", () => {
-  if (settingsChanged) {
-    browser.runtime.sendMessage({
-      action: "saveSettings",
-      options: speechOptions,
-    });
-  }
-});
-
-// Initialize
-async function initialize() {
-  try {
-    console.debug("Initializing popup...");
-    await getCurrentTab();
-
-    // Load content script
-    await loadContentScript();
-
-    // Load voices
-    await loadVoices();
-
-    // Load saved settings first
-    speechOptions = await SettingsManager.loadSettings();
-
-    // Apply settings to UI
-    applySettingsToUI();
-
-    // Check if reader is currently speaking
-    checkSpeechState();
-  } catch (error) {
-    console.error("Error initializing:", error);
-    statusMessage.textContent = "Error initializing. Please try again.";
-  }
-}
-
-// Start initialization
-initialize();
