@@ -10,7 +10,7 @@ class BackgroundService {
   constructor(enableLogger?: boolean) {
     this.logger = new Logger(enableLogger || false);
     this.init();
-    this.logger.log("Read Aloud background script loaded successfully.");
+    this.logger.log("Background service initialized.");
   }
 
   private init(): void {
@@ -39,16 +39,19 @@ class BackgroundService {
         title: "Read aloud",
         contexts: ["page", "selection"],
       });
-      this.logger.log("Context menu created successfully.");
-    } catch (error) {
-      console.error("Failed to create context menu:", error);
+      this.logger.log("Context menu for 'Read aloud' successfully registered.");
+    } catch (error: any) {
+      console.error(
+        "Failed to register 'Read aloud' context menu: ",
+        error.message
+      );
     }
   }
 
   private async handleContextMenuClick(info: any, tab: any): Promise<any> {
     if (info.menuItemId === this.CONTEXT_MENU_ID && tab?.id) {
       this.logger.log(
-        "Context menu clicked. Injecting content script if needed."
+        `Context menu 'Read aloud' clicked for tab ID: ${tab?.id}.`
       );
 
       try {
@@ -69,7 +72,7 @@ class BackgroundService {
       } catch (error) {
         try {
           // Content script is not loaded, inject it first
-          this.logger.log("Content script not loaded. Injecting it now.");
+          this.logger.log("Content script is not loaded. Injecting it now.");
           await browser.scripting.executeScript({
             target: { tabId: tab.id },
             files: ["content-scripts/content.js"],
@@ -83,7 +86,7 @@ class BackgroundService {
             options: this.speechOptions,
           });
         } catch (error) {
-          console.error("Failed to inject content script:", error);
+          console.error("Failed to inject content script: ", error);
         }
       }
     }
