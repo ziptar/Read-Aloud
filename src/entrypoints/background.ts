@@ -20,70 +20,85 @@ class BackgroundService {
     });
 
     // --- Context Menu Setup ---
-    browser.runtime.onInstalled.addListener(() => {
+    browser.runtime.onInstalled.addListener(() => this.createContextMenu());
+
+    browser.contextMenus.onClicked.addListener((info, tab) =>
+      this.handleContextMenuClick(info, tab)
+    );
+
+    // Handle messages from content scripts & popup
+    browser.runtime.onMessage.addListener((message) =>
+      this.handleMessage(message)
+    );
+  }
+
+  private createContextMenu(): void {
+    try {
       browser.contextMenus.create({
         id: this.CONTEXT_MENU_ID,
         title: "Read aloud",
         contexts: ["page", "selection"],
       });
       this.logger.log("Context menu created successfully.");
-    });
+    } catch (error) {
+      console.error("Failed to create context menu:", error);
+    }
+  }
 
-    browser.contextMenus.onClicked.addListener((info, tab) => {
-      if (info.menuItemId === this.CONTEXT_MENU_ID && tab?.id) {
-        this.logger.log(
-          "Context menu clicked. Injecting content script if needed."
-        );
+  private async handleContextMenuClick(info: any, tab: any): Promise<any> {
+    if (info.menuItemId === this.CONTEXT_MENU_ID && tab?.id) {
+      this.logger.log(
+        "Context menu clicked. Injecting content script if needed."
+      );
 
+      try {
         // First check if we can communicate with the content script
-        browser.tabs
-          .sendMessage(tab.id, { action: "ping" })
-          .then(() => {
-            // Content script is already loaded, send the readAloud message
-            this.logger.log(
-              "Content script is loaded. Sending startReading message."
-            );
-            return browser.tabs.sendMessage(tab?.id!, {
-              action: "startReading",
-              options: this.speechOptions,
-            });
-          })
-          .catch((err) => {
-            // Content script is not loaded, inject it first
-            this.logger.log("Content script not loaded. Injecting it now.");
-            browser.scripting
-              .executeScript({
-                target: { tabId: tab?.id! },
-                files: ["content-scripts/content.js"],
-              })
-              .then(() => {
-                this.logger.log("Content script injected successfully.");
-                this.logger.log(
-                  "Sending startReading message to newly injected content script."
-                );
-                return browser.tabs.sendMessage(tab?.id!, {
-                  action: "startReading",
-                  options: this.speechOptions,
-                });
-              })
-              .catch((err) => {
-                console.error("Error communicating with content script:", err);
-              });
-          });
-      }
-    });
-
-    // Handle messages from content scripts & popup
-    browser.runtime.onMessage.addListener((message) => {
-      if (message.action === "saveSettings") {
+        await browser.tabs.sendMessage(tab.id, { action: "ping" });
+        // Content script is already loaded, send the readAloud message
         this.logger.log(
-          "Received saveSettings message with options:",
-          message.options
+          "Content script is loaded. Sending startSpeaking message."
         );
-        this.speechOptions = message.options;
-        SettingsManager.saveSettings(message.options);
+        await browser.tabs.sendMessage(tab.id, {
+          action: "stopSpeaking",
+          options: this.speechOptions,
+        });
+        return browser.tabs.sendMessage(tab.id, {
+          action: "startSpeaking",
+          options: this.speechOptions,
+        });
+      } catch (error) {
+        try {
+          // Content script is not loaded, inject it first
+          this.logger.log("Content script not loaded. Injecting it now.");
+          await browser.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ["content-scripts/content.js"],
+          });
+          this.logger.log("Content script injected successfully.");
+          this.logger.log(
+            "Sending startSpeaking message to newly injected content script."
+          );
+          return browser.tabs.sendMessage(tab.id, {
+            action: "startSpeaking",
+            options: this.speechOptions,
+          });
+        } catch (error) {
+          console.error("Failed to inject content script:", error);
+        }
       }
-    });
+    }
+  }
+
+  private handleMessage(message: any): void {
+    this.logger.log("Background script received message:", message);
+    if (message.action === "saveSettings") {
+      this.logger.log(
+        "Received saveSettings message with settings:",
+        message.options
+      );
+      this.speechOptions = message.options;
+      SettingsManager.saveSettings(message.options);
+    }
   }
 }
 
