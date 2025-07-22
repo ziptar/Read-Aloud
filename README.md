@@ -12,8 +12,7 @@ This Read-Aloud extension serves as a practical example and educational resource
 * **Read Selected Text:** Users can select specific text on a page, and the extension will read only the selected portion.
 * **Context Menu Integration:** A right-click context menu option is available for start reading the entire page or the selected text.
 * **Intuitive Popup Interface:** The extension's popup provides controls for:
-  * **Read Aloud Button:** To start reading.
-  * **Pause/Resume Button:** To pause or resume reading.
+  * **Play/Pause/Resume Button:** To toggle between playing, pausing, and resuming the reading.
   * **Stop Button:** To completely halt reading.
   * **Voice Dropdown List:** To choose the voice for reading.
   * **Volume Slider:** To adjust the reading volume.
@@ -97,8 +96,7 @@ Load the extension:
     * **Click the Toolbar Icon**: Click the "Read Aloud" icon in your browser's toolbar.
     * **Context Menu**: Right-click on the page, and select "Read aloud" from the context menu.
 3. **Control Playback**: A small control panel will appear, allowing you to:
-    * **Read Aloud**: Click the read aloud button to start reading the content.
-    * **Pause/Resume**: Click the pause/resume button to pause or resume reading.
+    * **Play/Pause/Resume**: Click this button to start reading, pause the current reading, or resume from where you left off.
     * **Stop**: Click the stop button to stop reading.
     * **Change Voice**: Click the voice dropdown list to choose a different voice.
     * **Adjust Speed**: Drag the slider to change the reading speed.
