@@ -1,4 +1,4 @@
-import { EventEmitter } from "./";
+import { EventEmitter, TTSSettings } from "./";
 
 type ReaderEvents = {
   start: () => void;
@@ -15,13 +15,13 @@ export class Reader extends EventEmitter<ReaderEvents> {
 
   constructor() {
     super();
-    Reader.getVoices().then((voices) => (this.voices = voices));
+    this.loadVoices().then((voices) => (this.voices = voices));
   }
 
-  static getVoices(): Promise<SpeechSynthesisVoice[]> {
+  private loadVoices(): Promise<SpeechSynthesisVoice[]> {
     return new Promise((resolve) => {
       let voices = window.speechSynthesis.getVoices();
-      if (voices.length !== 0) {
+      if (voices.length > 0) {
         resolve(voices);
       } else {
         window.speechSynthesis.addEventListener("voiceschanged", function () {
@@ -32,10 +32,17 @@ export class Reader extends EventEmitter<ReaderEvents> {
     });
   }
 
+  getVoices(): Promise<SpeechSynthesisVoice[]> {
+    if (this.voices.length > 0) {
+      return Promise.resolve(this.voices);
+    }
+    return this.loadVoices();
+  }
+
   /**
    * Start speaking the provided text with the given options
    */
-  speak(text: string, options?: SpeechOptions): void {
+  speak(text: string, options?: TTSSettings): void {
     // Stop any ongoing speech
     this.stop();
 
@@ -116,15 +123,4 @@ export class Reader extends EventEmitter<ReaderEvents> {
   isPaused(): boolean {
     return window.speechSynthesis.paused;
   }
-}
-
-/**
- * Options for speech synthesis
- */
-export interface SpeechOptions {
-  voice: string;
-  rate: number;
-  pitch: number;
-  volume: number;
-  lang: string;
 }
