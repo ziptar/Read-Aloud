@@ -10,70 +10,96 @@
 
   <body>
     <div id="app">
-      <div class="read-aloud-container">
-        <h1>Read Aloud</h1>
+      <div class="popup-container">
+        <header class="popup-header">
+          <h1>Read Aloud</h1>
+        </header>
 
-        <div class="controls">
-          <button id="readButton" class="primary-button">
-            <span class="icon">▶</span> Read Aloud
+        <div class="playback-controls">
+          <button id="play-pause-btn" class="control-btn primary" disabled>
+            <svg
+              id="play-icon"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path d="M8 5v14l11-7z" />
+            </svg>
+            <svg
+              id="pause-icon"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+            </svg>
+            <span id="play-pause-text">Play</span>
           </button>
-          <button id="pauseButton" class="control-button" disabled>
-            <span class="icon">⏸</span> Pause
-          </button>
-          <button id="stopButton" class="control-button" disabled>
-            <span class="icon">⏹</span> Stop
+
+          <button id="stop-btn" class="control-btn" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6 6h12v12H6z" />
+            </svg>
+            Stop
           </button>
         </div>
 
-        <div class="settings">
-          <h2>Settings</h2>
-
+        <div class="quick-settings">
           <div class="setting-group">
-            <label for="voiceSelect">Voice:</label>
-            <select id="voiceSelect"></select>
+            <label for="voice-select">Voice:</label>
+            <select id="voice-select">
+              <option value="">Loading voices...</option>
+            </select>
           </div>
 
           <div class="setting-group">
-            <label for="rateRange">Speed:</label>
+            <label for="rate-slider"
+              >Speed: <span id="rate-value">1.0x</span></label
+            >
             <input
               type="range"
-              id="rateRange"
+              id="rate-slider"
               min="0.5"
-              max="2"
+              max="2.0"
               step="0.1"
-              value="1"
+              value="1.0"
             />
-            <span id="rateValue">1.0</span>
           </div>
 
           <div class="setting-group">
-            <label for="pitchRange">Pitch:</label>
+            <label for="pitch-slider"
+              >Pitch: <span id="pitch-value">1.0</span></label
+            >
             <input
               type="range"
-              id="pitchRange"
+              id="pitch-slider"
               min="0.5"
-              max="2"
+              max="2.0"
               step="0.1"
-              value="1"
+              value="1.0"
             />
-            <span id="pitchValue">1.0</span>
           </div>
 
           <div class="setting-group">
-            <label for="volumeRange">Volume:</label>
+            <label for="volume-slider"
+              >Volume: <span id="volume-value">100%</span></label
+            >
             <input
               type="range"
-              id="volumeRange"
+              id="volume-slider"
               min="0"
               max="1"
-              step="0.1"
-              value="1"
+              step="0.01"
+              value="1.0"
             />
-            <span id="volumeValue">1.0</span>
           </div>
         </div>
 
-        <div class="status" id="statusMessage"></div>
+        <div class="status-bar">
+          <div id="status-text">Ready</div>
+        </div>
       </div>
     </div>
     <script type="module" src="./main.ts"></script>
