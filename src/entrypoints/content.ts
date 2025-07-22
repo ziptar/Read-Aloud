@@ -2,7 +2,7 @@ import { Readability } from "@mozilla/readability";
 import { Reader, Logger, MessageBus, PlaybackState, TTSVoice } from "../lib/";
 
 class ContentScript {
-  private reader: Reader | undefined;
+  private reader: Reader;
   private logger: Logger;
 
   constructor(enableLogger?: boolean) {
@@ -21,15 +21,15 @@ class ContentScript {
     );
   }
   private setupReaderEventListeners() {
-    this.reader!.on("start", () => {
+    this.reader.on("start", () => {
       this.logger.log("Speech playback has started.");
       browser.runtime.sendMessage({ type: "SPEECH_STARTED" });
     });
-    this.reader!.on("end", () => {
+    this.reader.on("end", () => {
       this.logger.log("Speech playback has concluded.");
       browser.runtime.sendMessage({ type: "SPEECH_ENDED" });
     });
-    this.reader!.on("error", (error) => {
+    this.reader.on("error", (error) => {
       if (error.message !== "interrupted") {
         console.error("An error occurred during speech playback:", error);
         browser.runtime.sendMessage({
@@ -38,15 +38,15 @@ class ContentScript {
         });
       }
     });
-    this.reader!.on("pause", () => {
+    this.reader.on("pause", () => {
       this.logger.log("Speech playback paused.");
       browser.runtime.sendMessage({ type: "SPEECH_PAUSED" });
     });
-    this.reader!.on("resume", () => {
+    this.reader.on("resume", () => {
       this.logger.log("Speech playback resumed.");
       browser.runtime.sendMessage({ type: "SPEECH_RESUMED" });
     });
-    this.reader!.on("stop", () => {
+    this.reader.on("stop", () => {
       this.logger.log("Speech playback stopped.");
       browser.runtime.sendMessage({ type: "SPEECH_STOPPED" });
     });
@@ -70,24 +70,24 @@ class ContentScript {
           document.body.innerText;
 
         if (textToRead) {
-          this.reader!.speak(textToRead, message.payload);
+          this.reader.speak(textToRead, message.payload);
         }
       },
 
       STOP_SPEECH: () => {
-        this.reader!.stop();
+        this.reader.stop();
       },
       PAUSE_SPEECH: () => {
-        this.reader!.pause();
+        this.reader.pause();
       },
       RESUME_SPEECH: () => {
-        this.reader!.resume();
+        this.reader.resume();
       },
 
       GET_SPEECH_STATE: () => {
         const playbackState: PlaybackState = {
-          isPlaying: this.reader!.isSpeaking(),
-          isPaused: this.reader!.isPaused(),
+          isPlaying: this.reader.isSpeaking(),
+          isPaused: this.reader.isPaused(),
         };
         MessageBus.sendToPopup({
           type: "UPDATE_SPEECH_STATE",
@@ -95,7 +95,7 @@ class ContentScript {
         });
       },
       GET_VOICES: async () => {
-        const voices: TTSVoice[] = (await this.reader!.getVoices()).map(
+        const voices: TTSVoice[] = (await this.reader.getVoices()).map(
           (voice) => ({
             name: voice.name,
             lang: voice.lang,
