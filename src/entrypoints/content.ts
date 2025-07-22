@@ -23,32 +23,32 @@ class ContentScript {
   private setupReaderEventListeners() {
     this.reader.on("start", () => {
       this.logger.log("Speech playback has started.");
-      browser.runtime.sendMessage({ type: "SPEECH_STARTED" });
+      MessageBus.sendToPopup({ type: "SPEECH_STARTED" });
     });
     this.reader.on("end", () => {
       this.logger.log("Speech playback has concluded.");
-      browser.runtime.sendMessage({ type: "SPEECH_ENDED" });
+      MessageBus.sendToPopup({ type: "SPEECH_ENDED" });
     });
     this.reader.on("error", (error) => {
       if (error.message !== "interrupted") {
         console.error("An error occurred during speech playback:", error);
-        browser.runtime.sendMessage({
+        MessageBus.sendToPopup({
           type: "SPEECH_ERROR",
-          error: error,
+          payload: error,
         });
       }
     });
     this.reader.on("pause", () => {
       this.logger.log("Speech playback paused.");
-      browser.runtime.sendMessage({ type: "SPEECH_PAUSED" });
+      MessageBus.sendToPopup({ type: "SPEECH_PAUSED" });
     });
     this.reader.on("resume", () => {
       this.logger.log("Speech playback resumed.");
-      browser.runtime.sendMessage({ type: "SPEECH_RESUMED" });
+      MessageBus.sendToPopup({ type: "SPEECH_RESUMED" });
     });
     this.reader.on("stop", () => {
       this.logger.log("Speech playback stopped.");
-      browser.runtime.sendMessage({ type: "SPEECH_STOPPED" });
+      MessageBus.sendToPopup({ type: "SPEECH_STOPPED" });
     });
   }
 
