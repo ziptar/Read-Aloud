@@ -3,15 +3,17 @@ export type MessageType =
   | "STOP_SPEECH"
   | "PAUSE_SPEECH"
   | "RESUME_SPEECH"
-  | "GET_SPEECH_STATE"
-  | "SAVE_SETTINGS"
   | "SPEECH_STARTED"
   | "SPEECH_ENDED"
   | "SPEECH_STOPPED"
   | "SPEECH_PAUSED"
   | "SPEECH_RESUMED"
   | "SPEECH_ERROR"
+  | "GET_SPEECH_STATE"
   | "UPDATE_SPEECH_STATE"
+  | "GET_VOICES"
+  | "UPDATE_VOICES"
+  | "SAVE_SETTINGS"
   | "PING";
 
 export interface Message {
@@ -30,5 +32,10 @@ export interface TTSSettings {
   rate: number;
   pitch: number;
   volume: number;
+  lang: string;
+}
+
+export interface TTSVoice {
+  name: string;
   lang: string;
 }
