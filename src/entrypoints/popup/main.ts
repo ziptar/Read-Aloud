@@ -6,61 +6,76 @@ import {
   PlaybackState,
   MessageBus,
   Message,
+  TTSVoice,
 } from "../../lib/";
 
 class PopupController {
-  private logger = new Logger(true);
   private ttsSettings!: TTSSettings;
   private playbackState: PlaybackState = {
     isPlaying: false,
     isPaused: false,
   };
-  private settingsChanged = false;
+  private voices: TTSVoice[] = [];
   private currentTabId?: number;
-  // Get DOM elements
-  private readButton!: HTMLButtonElement;
-  private pauseButton!: HTMLButtonElement;
-  private stopButton!: HTMLButtonElement;
-  private voiceSelect!: HTMLSelectElement;
-  private rateRange!: HTMLInputElement;
-  private pitchRange!: HTMLInputElement;
-  private volumeRange!: HTMLInputElement;
-  private rateValue!: HTMLSpanElement;
-  private pitchValue!: HTMLSpanElement;
-  private volumeValue!: HTMLSpanElement;
-  private statusMessage!: HTMLDivElement;
+  private logger: Logger;
 
-  constructor() {
+  // DOM elements
+  private playPauseBtn!: HTMLButtonElement;
+  private stopBtn!: HTMLButtonElement;
+  private playIcon!: SVGElement;
+  private pauseIcon!: SVGElement;
+  private playPauseText!: HTMLSpanElement;
+  private voiceSelect!: HTMLSelectElement;
+  private rateSlider!: HTMLInputElement;
+  private rateValue!: HTMLSpanElement;
+  private pitchSlider!: HTMLInputElement;
+  private pitchValue!: HTMLSpanElement;
+  private volumeSlider!: HTMLInputElement;
+  private volumeValue!: HTMLSpanElement;
+  private statusText!: HTMLElement;
+  private settingsChanged: boolean = false;
+
+  constructor(enableLogger?: boolean) {
+    this.logger = new Logger(enableLogger || false);
     this.initializeElements();
     this.init();
+    this.logger.log("Popup controller initialized.");
   }
+
   private initializeElements(): void {
-    this.readButton = document.getElementById(
-      "readButton"
+    this.playPauseBtn = document.getElementById(
+      "play-pause-btn"
     ) as HTMLButtonElement;
-    this.pauseButton = document.getElementById(
-      "pauseButton"
-    ) as HTMLButtonElement;
-    this.stopButton = document.getElementById(
-      "stopButton"
-    ) as HTMLButtonElement;
-    this.voiceSelect = document.getElementById(
-      "voiceSelect"
-    ) as HTMLSelectElement;
-    this.rateRange = document.getElementById("rateRange") as HTMLInputElement;
-    this.pitchRange = document.getElementById("pitchRange") as HTMLInputElement;
-    this.volumeRange = document.getElementById(
-      "volumeRange"
-    ) as HTMLInputElement;
-    this.rateValue = document.getElementById("rateValue") as HTMLSpanElement;
-    this.pitchValue = document.getElementById("pitchValue") as HTMLSpanElement;
-    this.volumeValue = document.getElementById(
-      "volumeValue"
+    this.stopBtn = document.getElementById("stop-btn") as HTMLButtonElement;
+    this.playIcon = document.getElementById(
+      "play-icon"
+    ) as unknown as SVGElement;
+    this.pauseIcon = document.getElementById(
+      "pause-icon"
+    ) as unknown as SVGElement;
+    this.playPauseText = document.getElementById(
+      "play-pause-text"
     ) as HTMLSpanElement;
-    this.statusMessage = document.getElementById(
-      "statusMessage"
-    ) as HTMLDivElement;
+    this.voiceSelect = document.getElementById(
+      "voice-select"
+    ) as HTMLSelectElement;
+    this.rateSlider = document.getElementById(
+      "rate-slider"
+    ) as HTMLInputElement;
+    this.rateValue = document.getElementById("rate-value") as HTMLSpanElement;
+    this.pitchSlider = document.getElementById(
+      "pitch-slider"
+    ) as HTMLInputElement;
+    this.pitchValue = document.getElementById("pitch-value") as HTMLSpanElement;
+    this.volumeSlider = document.getElementById(
+      "volume-slider"
+    ) as HTMLInputElement;
+    this.volumeValue = document.getElementById(
+      "volume-value"
+    ) as HTMLSpanElement;
+    this.statusText = document.getElementById("status-text") as HTMLElement;
   }
+
   private async init(): Promise<void> {
     try {
       await this.getCurrentTab();
@@ -69,18 +84,14 @@ class PopupController {
 
       await this.loadContentScript();
 
-      await this.loadVoices();
-
-      // Load saved settings first
       this.ttsSettings = await SettingsManager.loadSettings();
 
-      this.applySettingsToUI();
+      await this.getSpeechState();
 
-      // Check if reader is currently speaking
-      await this.checkSpeechState();
+      await this.loadVoices();
     } catch (error) {
-      console.error("Error initializing:", error);
-      this.statusMessage.textContent = "Error initializing. Please try again.";
+      console.error("Failed to initialize popup:", error);
+      this.setStatus("Error initializing", "error");
     }
   }
 
@@ -93,39 +104,24 @@ class PopupController {
   }
 
   private setupEventListeners(): void {
-    this.logger.log("Setup event listeners.");
-    // Save settings when popup is closed
     window.addEventListener("blur", () => this.saveSettingsOnClose());
 
-    // Listen for messages from background script
     browser.runtime.onMessage.addListener((message: Message) =>
       this.handleMessage(message)
     );
+    // Playback controls
+    this.playPauseBtn.addEventListener("click", () => this.handlePlayPause());
+    this.stopBtn.addEventListener("click", () => this.handleStop());
 
-    // Add event listeners
-    this.readButton.addEventListener("click", () => this.startSpeaking());
-    this.stopButton.addEventListener("click", () => this.stopSpeaking());
-    this.pauseButton.addEventListener("click", () => this.togglePause());
-    this.voiceSelect.addEventListener("change", () => {
-      this.ttsSettings.voice = this.voiceSelect.value;
-      this.settingsChanged = true;
-    });
-    this.rateRange.addEventListener("input", () => {
-      this.ttsSettings.rate = parseFloat(this.rateRange.value);
-      this.rateValue.textContent = this.rateRange.value;
-      this.settingsChanged = true;
-    });
-    this.pitchRange.addEventListener("input", () => {
-      this.ttsSettings.pitch = parseFloat(this.pitchRange.value);
-      this.pitchValue.textContent = this.pitchRange.value;
-      this.settingsChanged = true;
-    });
-    this.volumeRange.addEventListener("input", () => {
-      this.ttsSettings.volume = parseFloat(this.volumeRange.value);
-      this.volumeValue.textContent = this.volumeRange.value;
-      this.settingsChanged = true;
-    });
+    // Settings controls
+    this.voiceSelect.addEventListener("change", () => this.handleVoiceChange());
+    this.rateSlider.addEventListener("input", () => this.handleRateChange());
+    this.pitchSlider.addEventListener("input", () => this.handlePitchChange());
+    this.volumeSlider.addEventListener("input", () =>
+      this.handleVolumeChange()
+    );
   }
+
   private saveSettingsOnClose(): void {
     if (!this.settingsChanged) return;
 
@@ -139,48 +135,159 @@ class PopupController {
     if (message.type === "SPEECH_STARTED") {
       this.playbackState.isPlaying = true;
       this.playbackState.isPaused = false;
-      this.statusMessage.textContent = "Reading page content...";
-      this.updateUI();
+      this.setStatus("Reading content...", "playing");
+      this.updatePlaybackControls();
       return;
     }
+
     if (message.type === "SPEECH_ENDED" || message.type === "SPEECH_STOPPED") {
       this.playbackState.isPlaying = false;
       this.playbackState.isPaused = false;
-      this.statusMessage.textContent = "Finished reading.";
-      this.updateUI();
+      this.setStatus("Ready", "normal");
+      this.updatePlaybackControls();
       return;
     }
+
     if (message.type === "SPEECH_PAUSED") {
       this.playbackState.isPaused = true;
-      this.statusMessage.textContent = "Paused reading.";
-      this.updateUI();
+      this.setStatus("Paused", "paused");
+      this.updatePlaybackControls();
       return;
     }
+
     if (message.type === "SPEECH_RESUMED") {
       this.playbackState.isPaused = false;
-      this.statusMessage.textContent = "Resumed reading...";
-      this.updateUI();
+      this.setStatus("Resuming...", "playing");
+      this.updatePlaybackControls();
       return;
     }
+
     if (message.type === "SPEECH_ERROR") {
       this.playbackState.isPlaying = false;
       this.playbackState.isPaused = false;
-      this.statusMessage.textContent = `Error: ${
-        message.payload || "Unknown error"
-      }`;
+      this.setStatus(`Error: ${message.payload || "Unknown error"}`, "error");
+      this.updatePlaybackControls();
+      return;
+    }
+
+    if (message.type === "UPDATE_VOICES") {
+      this.voices = message.payload;
+      this.populateVoiceSelect();
       this.updateUI();
       return;
     }
+
     if (message.type === "UPDATE_SPEECH_STATE") {
-      this.playbackState.isPlaying = message.payload.isPlaying;
-      this.playbackState.isPaused = message.payload.isPaused;
-      if (this.playbackState.isPlaying) {
-        this.statusMessage.textContent = this.playbackState.isPaused
-          ? "Paused reading."
-          : "Reading page content...";
+      this.playbackState = message.payload;
+      this.updatePlaybackControls();
+
+      if (!this.playbackState.isPlaying) {
+        return;
       }
-      this.updateUI();
+
+      if (this.playbackState.isPaused) {
+        this.setStatus("Paused", "paused");
+      } else {
+        this.setStatus("Reading content...", "playing");
+      }
     }
+  }
+
+  private async handlePlayPause(): Promise<void> {
+    try {
+      if (!this.playbackState?.isPlaying) {
+        await MessageBus.sendToContent({
+          type: "SPEAK_TEXT",
+          payload: this.ttsSettings,
+          tabId: this.currentTabId!,
+        });
+        this.updatePlaybackControls();
+        return;
+      }
+
+      const messageType = this.playbackState.isPaused
+        ? "RESUME_SPEECH"
+        : "PAUSE_SPEECH";
+      await MessageBus.sendToContent({
+        type: messageType,
+        tabId: this.currentTabId!,
+      });
+
+      this.updatePlaybackControls();
+    } catch (error: any) {
+      console.error("Playback error:", error);
+      this.setStatus("Playback error", "error");
+    }
+  }
+
+  private async handleStop(): Promise<void> {
+    try {
+      await MessageBus.sendToContent({
+        type: "STOP_SPEECH",
+        tabId: this.currentTabId!,
+      });
+      this.updatePlaybackControls();
+    } catch (error) {
+      console.error("Stop error:", error);
+      this.setStatus("Stop error", "error");
+    }
+  }
+
+  private updatePlaybackControls(): void {
+    const isPlaying = this.playbackState?.isPlaying || false;
+    const isPaused = this.playbackState?.isPaused || false;
+
+    // Update play/pause button
+    if (isPlaying && !isPaused) {
+      this.playIcon.style.display = "none";
+      this.pauseIcon.style.display = "block";
+      this.playPauseText.textContent = "Pause";
+      this.playPauseBtn.disabled = false;
+      this.stopBtn.disabled = false;
+    } else if (isPaused) {
+      this.playIcon.style.display = "block";
+      this.pauseIcon.style.display = "none";
+      this.playPauseText.textContent = "Resume";
+      this.playPauseBtn.disabled = false;
+      this.stopBtn.disabled = false;
+    } else {
+      this.playIcon.style.display = "block";
+      this.pauseIcon.style.display = "none";
+      this.playPauseText.textContent = "Play";
+      this.playPauseBtn.disabled = false;
+      this.stopBtn.disabled = true;
+    }
+
+    // Update container class for styling
+    document.body.className = "";
+    if (isPlaying && !isPaused) {
+      document.body.classList.add("playing");
+    } else if (isPaused) {
+      document.body.classList.add("paused");
+    }
+  }
+
+  private handleVoiceChange(): void {
+    this.ttsSettings.voice = this.voiceSelect.value;
+    this.settingsChanged = true;
+  }
+
+  private handleRateChange(): void {
+    this.ttsSettings.rate = parseFloat(this.rateSlider.value);
+    this.rateValue.textContent = this.rateSlider.value;
+    this.settingsChanged = true;
+  }
+
+  private handlePitchChange(): void {
+    this.ttsSettings.pitch = parseFloat(this.pitchSlider.value);
+    this.pitchValue.textContent = this.pitchSlider.value;
+    this.settingsChanged = true;
+  }
+
+  private handleVolumeChange(): void {
+    const volume = parseFloat(this.volumeSlider.value);
+    this.volumeValue.textContent = `${Math.round(volume * 100)}%`;
+    this.ttsSettings.volume = volume;
   }
 
   private async loadContentScript(): Promise<void> {
@@ -198,7 +305,7 @@ class PopupController {
           // Content script is not loaded, inject it first
           this.logger.log("Content script not loaded. Injecting it now.");
           await browser.scripting.executeScript({
-            target: { tabId: this.currentTabId! },
+            target: { tabId: this.currentTabId },
             files: ["content-scripts/content.js"],
           });
           this.logger.log("Content script injected successfully.");
@@ -209,123 +316,74 @@ class PopupController {
     }
   }
 
-  // Load available voices
-  private async loadVoices(): Promise<void> {
-    try {
-      const voices = await Reader.getVoices();
-
-      // Populate voice select dropdown
-      this.voiceSelect.innerHTML = "";
-      voices.forEach((voice) => {
-        const option = document.createElement("option");
-        option.value = voice.name;
-        option.textContent = `${voice.name} (${voice.lang})`;
-        this.voiceSelect.appendChild(option);
-      });
-    } catch (error) {
-      console.error("Error loading voices:", error);
-      this.statusMessage.textContent =
-        "Error loading voices. Please try again.";
-    }
-  }
-
-  // Apply settings to UI controls
-  private applySettingsToUI(): void {
-    this.voiceSelect.value = this.ttsSettings.voice;
-
-    this.rateRange.value = this.ttsSettings.rate.toString();
-    this.rateValue.textContent = this.ttsSettings.rate.toString();
-
-    this.pitchRange.value = this.ttsSettings.pitch.toString();
-    this.pitchValue.textContent = this.ttsSettings.pitch.toString();
-
-    this.volumeRange.value = this.ttsSettings.volume.toString();
-    this.volumeValue.textContent = this.ttsSettings.volume.toString();
-  }
-
-  // Check if reader is currently speaking
-  private async checkSpeechState(): Promise<void> {
+  private async getSpeechState(): Promise<void> {
     await MessageBus.sendToContent({
       type: "GET_SPEECH_STATE",
-      tabId: this.currentTabId,
-    }).catch((error) => {
-      console.error("Error checking speech state:", error);
+      tabId: this.currentTabId!,
     });
   }
 
-  // Update UI based on speech state
-  private updateUI(): void {
-    this.readButton.disabled = this.playbackState.isPlaying;
-    this.pauseButton.disabled = !this.playbackState.isPlaying;
-    this.stopButton.disabled =
-      !this.playbackState.isPlaying && !this.playbackState.isPaused;
-
-    if (this.playbackState.isPlaying) {
-      this.readButton.innerHTML = '<span class="icon">▶</span> Reading...';
-      this.pauseButton.innerHTML = this.playbackState.isPaused
-        ? '<span class="icon">▶</span> Resume'
-        : '<span class="icon">⏸</span> Pause';
-    } else {
-      this.readButton.innerHTML = '<span class="icon">▶</span> Read Aloud';
-      this.pauseButton.innerHTML = '<span class="icon">⏸</span> Pause';
-    }
-  }
-
-  // Start reading the page content
-  private startSpeaking(): void {
-    if (this.playbackState.isPlaying) return;
-
-    MessageBus.sendToContent({
-      type: "SPEAK_TEXT",
-      payload: this.ttsSettings,
-      tabId: this.currentTabId,
-    }).catch((error) => {
-      console.error("Error starting speech:", error.message);
-      this.statusMessage.textContent =
-        "Error starting speech. Please try again.";
-    });
-  }
-
-  // Stop speech
-  private stopSpeaking(): void {
-    if (!this.playbackState.isPlaying && !this.playbackState.isPaused) return;
-
-    MessageBus.sendToContent({
-      type: "STOP_SPEECH",
-      tabId: this.currentTabId,
-    }).catch((error) => {
-      console.error("Error stopping speech:", error);
-      this.statusMessage.textContent =
-        "Error stopping speech. Please try again.";
-    });
-  }
-
-  // Pause or resume speech
-  private togglePause(): void {
-    if (!this.playbackState.isPlaying) return;
-
+  private async loadVoices(): Promise<void> {
     try {
-      if (this.playbackState.isPaused) {
-        MessageBus.sendToContent({
-          type: "RESUME_SPEECH",
-          tabId: this.currentTabId,
-        });
-      } else {
-        MessageBus.sendToContent({
-          type: "PAUSE_SPEECH",
-          tabId: this.currentTabId,
-        });
-      }
-      this.updateUI();
+      // Clear existing options
+      this.voiceSelect.innerHTML =
+        '<option value="">Loading voices...</option>';
+
+      // Get voices from background script
+      await MessageBus.sendToContent({
+        type: "GET_VOICES",
+        tabId: this.currentTabId!,
+      });
     } catch (error) {
-      console.error("Error toggling pause:", error);
-      this.statusMessage.textContent =
-        "Error controlling speech. Please try again.";
+      console.error("Failed to load voices:", error);
+      this.voiceSelect.innerHTML =
+        '<option value="">No voices available</option>';
     }
+  }
+
+  private populateVoiceSelect(): void {
+    this.voiceSelect.innerHTML = "";
+
+    if (this.voices.length === 0) {
+      this.voiceSelect.innerHTML =
+        '<option value="">No voices available</option>';
+      return;
+    }
+
+    this.voices.forEach((voice) => {
+      const option = document.createElement("option");
+      option.value = voice.name;
+      option.textContent = `${voice.name} (${voice.lang})`;
+      this.voiceSelect.appendChild(option);
+    });
+  }
+
+  private updateUI(): void {
+    this.voiceSelect.value = this.ttsSettings.voice;
+
+    // Update sliders and values
+    this.rateSlider.value = this.ttsSettings.rate.toString();
+    this.rateValue.textContent = `${this.ttsSettings.rate.toFixed(1)}x`;
+
+    this.pitchSlider.value = this.ttsSettings.pitch.toString();
+    this.pitchValue.textContent = `${this.ttsSettings.pitch.toFixed(1)}`;
+
+    this.volumeSlider.value = this.ttsSettings.volume.toString();
+    this.volumeValue.textContent = `${Math.round(
+      this.ttsSettings.volume * 100
+    )}%`;
+  }
+
+  private setStatus(
+    text: string,
+    type: "normal" | "playing" | "paused" | "error" = "normal"
+  ): void {
+    this.statusText.textContent = text;
+    this.statusText.className = type;
   }
 }
 
 // Initialize popup when DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
-  new PopupController();
+  new PopupController(true);
 });
