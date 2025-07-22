@@ -12,7 +12,7 @@ class BackgroundService {
   private logger: Logger;
 
   constructor(enableLogger?: boolean) {
-    this.logger = new Logger(enableLogger || false);
+    this.logger = new Logger(enableLogger);
     this.init();
     this.logger.log("Background service initialized.");
   }

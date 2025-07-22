@@ -36,7 +36,7 @@ class PopupController {
   private settingsChanged: boolean = false;
 
   constructor(enableLogger?: boolean) {
-    this.logger = new Logger(enableLogger || false);
+    this.logger = new Logger(enableLogger);
     this.initializeElements();
     this.init();
     this.logger.log("Popup controller initialized.");

@@ -6,7 +6,7 @@ class ContentScript {
   private logger: Logger;
 
   constructor(enableLogger?: boolean) {
-    this.logger = new Logger(enableLogger || false);
+    this.logger = new Logger(enableLogger);
     this.reader = new Reader();
     this.setupEventListener();
     this.logger.log("Content script initialized and listening for messages.");
