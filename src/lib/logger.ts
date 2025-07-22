@@ -2,7 +2,7 @@ export class Logger {
   private _enabled: boolean;
 
   constructor(enabled?: boolean) {
-    this._enabled = enabled || true;
+    this._enabled = enabled || false;
   }
   public get enabled(): boolean {
     return this._enabled;
