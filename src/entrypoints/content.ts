@@ -1,5 +1,5 @@
 import { Readability } from "@mozilla/readability";
-import { Reader, Logger, MessageBus, PlaybackState } from "../lib/";
+import { Reader, Logger, MessageBus, PlaybackState, TTSVoice } from "../lib/";
 
 class ContentScript {
   private reader: Reader | undefined;
@@ -92,6 +92,18 @@ class ContentScript {
         MessageBus.sendToPopup({
           type: "UPDATE_SPEECH_STATE",
           payload: playbackState,
+        });
+      },
+      GET_VOICES: async () => {
+        const voices: TTSVoice[] = (await this.reader!.getVoices()).map(
+          (voice) => ({
+            name: voice.name,
+            lang: voice.lang,
+          })
+        );
+        MessageBus.sendToPopup({
+          type: "UPDATE_VOICES",
+          payload: voices,
         });
       },
     };
