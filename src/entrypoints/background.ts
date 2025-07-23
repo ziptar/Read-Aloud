@@ -55,8 +55,10 @@ class BackgroundService {
   private async handleContextMenuClick(info: any, tab: any): Promise<any> {
     if (info.menuItemId === this.CONTEXT_MENU_ID && tab?.id) {
       this.logger.log(
-        `Context menu 'Read aloud' clicked for tab ID: ${tab?.id}.`
+        `Context menu 'Read aloud' clicked for tab ID: ${tab.id}.`
       );
+
+      if (tab.url.includes("chrome://")) return;
 
       try {
         // First check if we can communicate with the content script

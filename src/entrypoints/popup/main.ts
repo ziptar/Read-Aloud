@@ -16,7 +16,7 @@ class PopupController {
     isPaused: false,
   };
   private voices: TTSVoice[] = [];
-  private currentTabId?: number;
+  private currentTab!: Browser.tabs.Tab;
   private logger: Logger;
 
   // DOM elements
@@ -39,7 +39,6 @@ class PopupController {
     this.logger = new Logger(enableLogger);
     this.initializeElements();
     this.init();
-    this.logger.log("Popup controller initialized.");
   }
 
   private initializeElements(): void {
@@ -80,6 +79,11 @@ class PopupController {
     try {
       await this.getCurrentTab();
 
+      if (this.currentTab.url?.includes("chrome://")) {
+        this.setStatus("Chrome internal page", "error");
+        return;
+      }
+
       this.setupEventListeners();
 
       await this.loadContentScript();
@@ -89,6 +93,8 @@ class PopupController {
       await this.getSpeechState();
 
       await this.loadVoices();
+
+      this.logger.log("Popup initialized successfully.");
     } catch (error) {
       console.error("Failed to initialize popup:", error);
       this.setStatus("Error initializing", "error");
@@ -100,7 +106,7 @@ class PopupController {
       active: true,
       currentWindow: true,
     });
-    this.currentTabId = tab?.id;
+    this.currentTab = tab;
   }
 
   private setupEventListeners(): void {
@@ -199,7 +205,7 @@ class PopupController {
         await MessageBus.sendToContent({
           type: "SPEAK_TEXT",
           payload: this.ttsSettings,
-          tabId: this.currentTabId!,
+          tabId: this.currentTab.id,
         });
         this.updatePlaybackControls();
         return;
@@ -210,7 +216,7 @@ class PopupController {
         : "PAUSE_SPEECH";
       await MessageBus.sendToContent({
         type: messageType,
-        tabId: this.currentTabId!,
+        tabId: this.currentTab.id,
       });
 
       this.updatePlaybackControls();
@@ -224,7 +230,7 @@ class PopupController {
     try {
       await MessageBus.sendToContent({
         type: "STOP_SPEECH",
-        tabId: this.currentTabId!,
+        tabId: this.currentTab.id,
       });
       this.updatePlaybackControls();
     } catch (error) {
@@ -291,12 +297,12 @@ class PopupController {
   }
 
   private async loadContentScript(): Promise<void> {
-    if (this.currentTabId) {
+    if (this.currentTab) {
       try {
         // First check if we can communicate with the content script
         await MessageBus.sendToContent({
           type: "PING",
-          tabId: this.currentTabId!,
+          tabId: this.currentTab.id,
         });
         // Content script is already loaded
         this.logger.log("Content script is loaded.");
@@ -305,7 +311,7 @@ class PopupController {
           // Content script is not loaded, inject it first
           this.logger.log("Content script not loaded. Injecting it now.");
           await browser.scripting.executeScript({
-            target: { tabId: this.currentTabId },
+            target: { tabId: this.currentTab.id! },
             files: ["content-scripts/content.js"],
           });
           this.logger.log("Content script injected successfully.");
@@ -319,7 +325,7 @@ class PopupController {
   private async getSpeechState(): Promise<void> {
     await MessageBus.sendToContent({
       type: "GET_SPEECH_STATE",
-      tabId: this.currentTabId!,
+      tabId: this.currentTab.id,
     });
   }
 
@@ -332,7 +338,7 @@ class PopupController {
       // Get voices from background script
       await MessageBus.sendToContent({
         type: "GET_VOICES",
-        tabId: this.currentTabId!,
+        tabId: this.currentTab.id,
       });
     } catch (error) {
       console.error("Failed to load voices:", error);
