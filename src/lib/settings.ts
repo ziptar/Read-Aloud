@@ -1,8 +1,8 @@
-import { SpeechOptions, Logger } from "./";
+import { TTSSettings, Logger } from "./";
 
 export class SettingsManager {
   private static _logger: Logger = new Logger(false);
-  private static defaults: SpeechOptions = {
+  private static defaults: TTSSettings = {
     voice: "",
     rate: 1,
     pitch: 1,
@@ -14,7 +14,7 @@ export class SettingsManager {
     this._logger.enabled = value;
   }
 
-  static async loadSettings(): Promise<SpeechOptions> {
+  static async loadSettings(): Promise<TTSSettings> {
     try {
       const result = await browser.storage.local.get("settings");
       const settings = result.settings || this.defaults;
@@ -27,7 +27,7 @@ export class SettingsManager {
     }
   }
 
-  static saveSettings(settings: SpeechOptions) {
+  static saveSettings(settings: TTSSettings) {
     browser.storage.local
       .set({ settings })
       .then(() => {
