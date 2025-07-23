@@ -79,8 +79,11 @@ class PopupController {
     try {
       await this.getCurrentTab();
 
-      if (this.currentTab.url?.includes("chrome://")) {
-        this.setStatus("Chrome internal page", "error");
+      if (
+        this.currentTab.url?.includes("chrome://") ||
+        this.currentTab.url?.includes("about:")
+      ) {
+        this.setStatus("Browser internal page", "error");
         return;
       }
 

@@ -58,7 +58,7 @@ class BackgroundService {
         `Context menu 'Read aloud' clicked for tab ID: ${tab.id}.`
       );
 
-      if (tab.url.includes("chrome://")) return;
+      if (tab.url.includes("chrome://") || tab.url.includes("about:")) return;
 
       try {
         // First check if we can communicate with the content script
