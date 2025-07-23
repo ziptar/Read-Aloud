@@ -18,7 +18,7 @@ export class EventEmitter<T extends EventMap> {
     }
   }
 
-  protected emit<K extends keyof T>(event: K, ...args: Parameters<T[K]>): void {
+  emit<K extends keyof T>(event: K, ...args: Parameters<T[K]>): void {
     if (this.eventListeners[event]) {
       this.eventListeners[event]!.forEach((listener) => {
         try {

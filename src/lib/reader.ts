@@ -9,13 +9,30 @@ type ReaderEvents = {
   error: (error: Error) => void;
 };
 
-export class Reader extends EventEmitter<ReaderEvents> {
+export class Reader {
   private voices: SpeechSynthesisVoice[] = [];
   private utterance: SpeechSynthesisUtterance | null = null;
 
+  private eventEmitter: EventEmitter<ReaderEvents>;
+
   constructor() {
-    super();
+    this.eventEmitter = new EventEmitter<ReaderEvents>();
     this.loadVoices().then((voices) => (this.voices = voices));
+  }
+
+  on<K extends keyof ReaderEvents>(event: K, listener: ReaderEvents[K]): void {
+    this.eventEmitter.on(event, listener);
+  }
+
+  off<K extends keyof ReaderEvents>(event: K, listener: ReaderEvents[K]): void {
+    this.eventEmitter.off(event, listener);
+  }
+
+  emit<K extends keyof ReaderEvents>(
+    event: K,
+    ...args: Parameters<ReaderEvents[K]>
+  ): void {
+    this.eventEmitter.emit(event, ...args);
   }
 
   private loadVoices(): Promise<SpeechSynthesisVoice[]> {
@@ -42,7 +59,7 @@ export class Reader extends EventEmitter<ReaderEvents> {
   /**
    * Start speaking the provided text with the given options
    */
-  speak(text: string, options?: TTSSettings): void {
+  speak(text: string, options: TTSSettings): void {
     // Stop any ongoing speech
     this.stop();
 
@@ -50,18 +67,16 @@ export class Reader extends EventEmitter<ReaderEvents> {
     this.utterance = new SpeechSynthesisUtterance(text);
 
     // Apply speech options
-    if (options) {
-      const selectedVoice = this.voices.find(
-        (voice) => voice.name === options.voice
-      );
-      if (selectedVoice) {
-        this.utterance.voice = selectedVoice;
-      }
-      this.utterance.rate = options.rate;
-      this.utterance.pitch = options.pitch;
-      this.utterance.volume = options.volume;
-      this.utterance.lang = options.lang;
+    const selectedVoice = this.voices.find(
+      (voice) => voice.name === options.voice
+    );
+    if (selectedVoice) {
+      this.utterance.voice = selectedVoice;
     }
+    this.utterance.rate = options.rate;
+    this.utterance.pitch = options.pitch;
+    this.utterance.volume = options.volume;
+    this.utterance.lang = options.lang;
 
     // Add event listeners
     this.utterance.onend = () => {
