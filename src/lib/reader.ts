@@ -12,6 +12,8 @@ type ReaderEvents = {
 export class Reader {
   private voices: SpeechSynthesisVoice[] = [];
   private utterance: SpeechSynthesisUtterance | null = null;
+  private _isSpeaking: boolean = false;
+  private _isPaused: boolean = false;
 
   private eventEmitter: EventEmitter<ReaderEvents>;
 
@@ -67,6 +69,7 @@ export class Reader {
     this.utterance = new SpeechSynthesisUtterance(text);
 
     // Apply speech options
+
     const selectedVoice = this.voices.find(
       (voice) => voice.name === options.voice
     );
@@ -82,16 +85,20 @@ export class Reader {
     this.utterance.onend = () => {
       this.utterance = null;
       this.emit("end");
+      this._isSpeaking = false;
     };
 
     this.utterance.onerror = (event) => {
       this.utterance = null;
       this.emit("error", new Error(event.error));
+      this._isSpeaking = false;
+      this._isPaused = false;
     };
 
     // Start speaking
     window.speechSynthesis.speak(this.utterance);
     this.emit("start");
+    this._isSpeaking = true;
   }
 
   /**
@@ -102,6 +109,8 @@ export class Reader {
       window.speechSynthesis.cancel();
       this.utterance = null;
       this.emit("stop");
+      this._isSpeaking = false;
+      this._isPaused = false;
     }
   }
 
@@ -112,6 +121,7 @@ export class Reader {
     if (this.utterance && window.speechSynthesis.speaking) {
       window.speechSynthesis.pause();
       this.emit("pause");
+      this._isPaused = true;
     }
   }
 
@@ -122,20 +132,21 @@ export class Reader {
     if (this.utterance && window.speechSynthesis.paused) {
       window.speechSynthesis.resume();
       this.emit("resume");
+      this._isPaused = false;
     }
   }
 
   /**
    * Check if speech is currently active
    */
-  isSpeaking(): boolean {
-    return window.speechSynthesis.speaking;
+  get isSpeaking(): boolean {
+    return this._isSpeaking;
   }
 
   /**
    * Check if speech is currently paused
    */
-  isPaused(): boolean {
-    return window.speechSynthesis.paused;
+  get isPaused(): boolean {
+    return this._isPaused;
   }
 }
