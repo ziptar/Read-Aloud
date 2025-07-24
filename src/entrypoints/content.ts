@@ -1,5 +1,13 @@
 import { Readability } from "@mozilla/readability";
-import { Reader, Logger, MessageBus, PlaybackState, TTSVoice } from "../lib/";
+import {
+  Reader,
+  Logger,
+  MessageBus,
+  PlaybackState,
+  TTSVoice,
+  Message,
+  TTSSettings,
+} from "../lib/";
 
 class ContentScript {
   private reader: Reader;
@@ -52,64 +60,67 @@ class ContentScript {
     });
   }
 
-  private handleMessage(message: any): void {
-    this.logger.log("Content script received message:", message);
+  private handleMessage(message: Message): void {
+    this.logger.log("Content script received message:", message.type);
 
-    const messageHandlers: Record<string, () => void> = {
-      // Add a ping handler to check if content script is loaded
-      // PING: () => {
-      //   this.logger.log("Received PING message.");
-      // },
-
-      SPEAK_TEXT: () => {
-        // Extract selected text or page content
-        const selectedText = window.getSelection()?.toString();
-        const textToRead =
-          selectedText ||
-          this.extractReadableContent() ||
-          document.body.innerText;
-
-        if (textToRead) {
-          this.reader.speak(textToRead, message.payload);
-        }
-      },
-
-      STOP_SPEECH: () => {
+    switch (message.type) {
+      case "PING":
+        this.logger.log("Received PING message.");
+        break;
+      case "SPEAK_TEXT":
+        this.handleSpeakText(message.payload);
+        break;
+      case "STOP_SPEECH":
         this.reader.stop();
-      },
-      PAUSE_SPEECH: () => {
+        break;
+      case "PAUSE_SPEECH":
         this.reader.pause();
-      },
-      RESUME_SPEECH: () => {
+        break;
+      case "RESUME_SPEECH":
         this.reader.resume();
-      },
-
-      GET_SPEECH_STATE: () => {
-        const playbackState: PlaybackState = {
-          isPlaying: this.reader.isSpeaking(),
-          isPaused: this.reader.isPaused(),
-        };
-        MessageBus.sendToPopup({
-          type: "UPDATE_SPEECH_STATE",
-          payload: playbackState,
-        });
-      },
-      GET_VOICES: async () => {
-        const voices: TTSVoice[] = (await this.reader.getVoices()).map(
-          (voice) => ({
-            name: voice.name,
-            lang: voice.lang,
-          })
-        );
-        MessageBus.sendToPopup({
-          type: "UPDATE_VOICES",
-          payload: voices,
-        });
-      },
-    };
-
-    messageHandlers[message.type]?.();
+        break;
+      case "GET_SPEECH_STATE":
+        this.handleGetSpeechState();
+        break;
+      case "GET_VOICES":
+        this.handleGetVoices();
+        break;
+    }
   }
+
+  private handleSpeakText(settings: TTSSettings): void {
+    // Extract selected text or page content
+    const selectedText = window.getSelection()?.toString();
+    const textToRead =
+      selectedText || this.extractReadableContent() || document.body.innerText;
+
+    if (textToRead) {
+      this.reader.speak(textToRead, settings);
+    }
+  }
+
+  private handleGetSpeechState(): void {
+    const playbackState: PlaybackState = {
+      isPlaying: this.reader.isSpeaking,
+      isPaused: this.reader.isPaused,
+    };
+    MessageBus.sendToPopup({
+      type: "UPDATE_SPEECH_STATE",
+      payload: playbackState,
+    });
+  }
+
+  private async handleGetVoices(): Promise<void> {
+    const voices: TTSVoice[] = (await this.reader.getVoices()).map((voice) => ({
+      name: voice.name,
+      lang: voice.lang,
+    }));
+    MessageBus.sendToPopup({
+      type: "UPDATE_VOICES",
+      payload: voices,
+    });
+  }
+
   private extractReadableContent(): string | undefined {
     try {
       const doc = document.cloneNode(true) as Document;
